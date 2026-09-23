@@ -21,6 +21,13 @@
 - `errors.py`: доменные исключения с привязкой к `ErrorCode` и функция `error_for_code`.
 - `ports.py`: Protocol-порты (downloader, transcoder, segmenter, probe, repository, event bus, storage, cookies) и тип `ProgressCallback`; порт публикации в Stories осознанно отсутствует.
 - Unit-тесты автомата состояний и доменных ошибок.
+- Слой infrastructure (Фаза 2, часть 1) - адаптеры без внешних бинарников:
+  `security/api_keys.py` (реестр `ключ -> key_id`, без утечки ключей в `repr`),
+  `storage/filesystem_storage.py` (каталоги задач, удаление промежуточных/всей задачи),
+  `cookies/filesystem_cookies.py` (атомарная запись, права 0600, статус/удаление),
+  `persistence/sqlite_repo.py` (`JobRepositoryPort` на aiosqlite, миграция схемы),
+  `events/sse_bus.py` (внутрипроцессная шина событий с ранней регистрацией подписки).
+- Unit-тесты адаптеров и статическая проверка их соответствия портам (mypy).
 
 ### Decided
 

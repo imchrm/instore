@@ -21,15 +21,15 @@
 
 ## Фаза 2. Infrastructure — адаптеры
 
-- [ ] `persistence/sqlite_repo.py`: `JobRepositoryPort` на aiosqlite, миграция схемы при старте
-- [ ] `storage/filesystem_storage.py`: каталоги задач, удаление промежуточных и всей задачи
-- [ ] `events/sse_bus.py`: `EventBusPort` (подписка/публикация на процесс)
+- [x] `persistence/sqlite_repo.py`: `JobRepositoryPort` на aiosqlite, миграция схемы при старте
+- [x] `storage/filesystem_storage.py`: каталоги задач, удаление промежуточных и всей задачи
+- [x] `events/sse_bus.py`: `EventBusPort` (подписка/публикация на процесс)
 - [ ] `downloader/ytdlp.py`: `probe_meta` и `download` с ограничениями (`--max-filesize`, высота, cookies), парсинг progress-hooks, маппинг ошибок yt-dlp в `ErrorCode`
 - [ ] `media/ffmpeg_transcoder.py`: transcode c `force_key_frames` и фильтрами `stories_fit`, парсинг `-progress pipe:1`
 - [ ] `media/ffmpeg_segmenter.py`: нарезка `-c copy -f segment`
 - [ ] `media/ffprobe_probe.py`: длительность куска
-- [ ] `cookies/filesystem_cookies.py`: хранение по `key_id`, атомарная запись, права 0600, статус/удаление
-- [ ] `security/api_keys.py`: парсинг `API_KEYS` в `key -> key_id`, проверка ключа
+- [x] `cookies/filesystem_cookies.py`: хранение по `key_id`, атомарная запись, права 0600, статус/удаление
+- [x] `security/api_keys.py`: парсинг `API_KEYS` в `key -> key_id`, проверка ключа
 
 ## Фаза 3. Application — сценарии
 
