@@ -34,13 +34,13 @@
 ## Фаза 3. Application — сценарии
 
 - [x] `create_job`: валидация, регистрация задачи, постановка в очередь
-- [ ] `process_job` + `services/job_processing.py`: оркестрация конвейера (download → transcode → segment → probe → ready), обновление прогресса и статусов
+- [x] `process_job` + `services/job_processing.py`: оркестрация конвейера (download → transcode → segment → probe → ready), обновление прогресса и статусов
 - [x] `get_job`: чтение с проверкой `key_id`
 - [x] `stream_progress`: поток SSE по задаче
 - [x] `delete_job`: удаление задачи и файлов с проверкой `key_id`
 - [x] `cleanup_expired`: перевод `ready` в `expired` по TTL и удаление файлов
 - [x] `cookies_admin`: upload/status/delete cookies для текущего `key_id`
-- [~] Unit-тесты сценариев на fake-портах (изоляция по `key_id` готова; `TOO_LARGE`/`AUTH_REQUIRED` - вместе с оркестрацией)
+- [x] Unit-тесты сценариев на fake-портах (включая `TOO_LARGE`, `TOO_LONG`, `AUTH_REQUIRED`, изоляцию по `key_id`)
 
 ## Фаза 4. Worker
 

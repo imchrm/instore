@@ -44,6 +44,16 @@
   `cleanup_expired` (перевод `ready` в `expired` по TTL),
   `cookies_admin` (upload/status/delete cookies).
 - Unit-тесты сценариев на общих in-memory fake-портах (`tests/port_fakes.py`).
+- Слой application (Фаза 3, часть 2) - оркестрация конвейера:
+  `services/job_processing.py` (`JobProcessingService.process`: фазы
+  download -> transcode -> segment -> probe -> ready, обновление статусов и
+  прогресса через шину и репозиторий, проверки лимитов `TOO_LARGE`/`TOO_LONG`,
+  разрешение cookies `AUTH_REQUIRED`, подсчёт sha256/размеров кусков и запись
+  `manifest.json`, перевод в `FAILED` при любой доменной ошибке),
+  `use_cases/process_job.py` (загрузка задачи по id и запуск конвейера).
+- Unit-тесты оркестрации на fake-адаптерах (happy path, over_limit,
+  `AUTH_REQUIRED`, `TOO_LARGE`, `TOO_LONG`, сбой скачивания). С этим слой
+  application (Фаза 3) завершён.
 
 ### Decided
 
