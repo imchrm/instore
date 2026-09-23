@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
     import aiosqlite
 
+    from stories_backend.application.ports import JobProcessorPort, JobSubmitterPort
     from stories_backend.domain.ports import (
         CookiesStorePort,
         EventBusPort,
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
     from stories_backend.infrastructure.persistence.sqlite_repo import SqliteJobRepository
     from stories_backend.infrastructure.process.runner import AsyncioProcessRunner
     from stories_backend.infrastructure.storage.filesystem_storage import FilesystemStorage
+    from stories_backend.worker.queue import JobQueue
 
     _runner = AsyncioProcessRunner()
     _probe: MediaProbePort = FfprobeMediaProbe(_runner)
@@ -44,3 +46,4 @@ if TYPE_CHECKING:
     _segmenter: SegmenterPort = FfmpegSegmenter(_runner)
     _transcoder: TranscoderPort = FfmpegTranscoder(_runner, _probe)
     _downloader: VideoDownloaderPort = YtDlpDownloader(_runner)
+    _submitter: JobSubmitterPort = JobQueue(cast("JobProcessorPort", None))
