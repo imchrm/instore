@@ -28,6 +28,14 @@
   `persistence/sqlite_repo.py` (`JobRepositoryPort` на aiosqlite, миграция схемы),
   `events/sse_bus.py` (внутрипроцессная шина событий с ранней регистрацией подписки).
 - Unit-тесты адаптеров и статическая проверка их соответствия портам (mypy).
+- Слой infrastructure (Фаза 2, часть 2) - процессные адаптеры внешних инструментов:
+  `process/runner.py` (инъектируемый `ProcessRunner` поверх asyncio subprocess),
+  `media/ffprobe_probe.py` (длительность файла),
+  `media/ffmpeg_segmenter.py` (нарезка `-c copy -f segment`, список кусков),
+  `media/ffmpeg_transcoder.py` (transcode с `force_key_frames`, фильтрами `stories_fit`, прогресс из `-progress pipe:1`),
+  `downloader/ytdlp.py` (`probe_meta`/`download` с ограничениями и cookies, прогресс, маппинг ошибок yt-dlp в `ErrorCode`).
+- Unit-тесты процессных адаптеров на фейковом раннере (без реальных ffmpeg/yt-dlp).
+- `README.md`: обзор проекта, стек, структура, установка и проверки.
 
 ### Decided
 
