@@ -36,6 +36,14 @@
   `downloader/ytdlp.py` (`probe_meta`/`download` с ограничениями и cookies, прогресс, маппинг ошибок yt-dlp в `ErrorCode`).
 - Unit-тесты процессных адаптеров на фейковом раннере (без реальных ffmpeg/yt-dlp).
 - `README.md`: обзор проекта, стек, структура, установка и проверки.
+- Слой application (Фаза 3, часть 1) - сценарии без оркестрации:
+  `config.py` (`ProcessingLimits` - лимиты/дефолты из ENV-таблицы),
+  `ports.py` (`JobSubmitterPort`, типы `Clock`/`IdGenerator`),
+  `create_job` (регистрация + постановка в очередь),
+  `get_job`/`delete_job`/`stream_progress` (изоляция по `key_id`),
+  `cleanup_expired` (перевод `ready` в `expired` по TTL),
+  `cookies_admin` (upload/status/delete cookies).
+- Unit-тесты сценариев на общих in-memory fake-портах (`tests/port_fakes.py`).
 
 ### Decided
 
