@@ -64,6 +64,15 @@
   Добавлен порт `JobRepositoryPort.list_unfinished` и `JobProcessorPort`.
 - Unit-тесты воркера: порядок обработки, ограничение параллелизма,
   восстановление только in-flight задач, один проход и жизненный цикл планировщика.
+- Слой interface (Фаза 5, часть 1) - HTTP-каркас:
+  `interface/config.py` (Pydantic Settings по таблице ENV; `to_limits`),
+  `interface/api/schemas.py` (DTO запросов/ответов), `mappers.py` (domain -> DTO),
+  `container.py` + `deps.py` (DI-контейнер, аутентификация `X-API-Key` -> `key_id`),
+  `interface/api/app.py` (`create_app` + `lifespan`: сборка адаптеров/сценариев,
+  восстановление прерванных задач, запуск воркера и планировщика),
+  роутер `system` (`/api/v1/health`, `/api/v1/config`).
+- Unit-тесты: настройки, мапперы и приложение (жизненный цикл, `/health`, `/config`)
+  через `TestClient`. Роутеры `jobs`/`admin` - в части 2.
 
 ### Decided
 

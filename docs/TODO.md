@@ -50,13 +50,13 @@
 
 ## Фаза 5. Interface — API
 
-- [ ] `interface/config.py`: Pydantic Settings по таблице ENV
-- [ ] `interface/api/app.py`: сборка FastAPI, lifespan (запуск воркера и планировщика), DI-граф
-- [ ] `deps.py`: аутентификация `X-API-Key`, извлечение `key_id`
-- [ ] `schemas.py` + `mappers.py`: DTO и маппинг domain <-> DTO
+- [x] `interface/config.py`: Pydantic Settings по таблице ENV
+- [x] `interface/api/app.py`: сборка FastAPI, lifespan (запуск воркера и планировщика), DI-граф
+- [x] `deps.py`: аутентификация `X-API-Key`, извлечение `key_id`
+- [x] `schemas.py` + `mappers.py`: DTO и маппинг domain <-> DTO
 - [ ] `routers/jobs.py`: POST/GET/DELETE, SSE, отдача кусков (X-Accel-Redirect / FileResponse)
 - [ ] `routers/admin.py`: cookies upload/status/delete
-- [ ] `routers/system.py`: `/config`, `/health`
+- [x] `routers/system.py`: `/config`, `/health`
 
 ## Фаза 6. Тестирование и качество
 
