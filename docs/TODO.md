@@ -5,11 +5,11 @@
 
 ## Фаза 0. Каркас проекта
 
-- [ ] Инициализация репозитория, структура каталогов по `ARCHITECTURE.md`
-- [ ] `pyproject.toml`: Python 3.12+, зависимости (fastapi, uvicorn, pydantic v2, pydantic-settings, aiosqlite, structlog/loguru)
-- [ ] Настройка `ruff` (lint + format) и `mypy --strict`
-- [ ] Базовый `pytest` и CI-гейт (ruff + mypy + pytest)
-- [ ] Заготовка Dockerfile (multi-stage) с ffmpeg/ffprobe/yt-dlp
+- [x] Инициализация репозитория, структура каталогов по `ARCHITECTURE.md`
+- [x] `pyproject.toml`: Python 3.12+, зависимости (fastapi, uvicorn, pydantic v2, pydantic-settings, aiosqlite, structlog/loguru)
+- [x] Настройка `ruff` (lint + format) и `mypy --strict`
+- [x] Базовый `pytest` и CI-гейт (ruff + mypy + pytest)
+- [x] Заготовка Dockerfile (multi-stage) с ffmpeg/ffprobe/yt-dlp
 
 ## Фаза 1. Domain
 

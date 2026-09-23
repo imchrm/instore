@@ -13,6 +13,10 @@
 - Определён контракт REST/SSE API: создание задачи, статус/манифест, поток прогресса, отдача кусков, админ-эндпоинты cookies, `/config`, `/health`.
 - Определён конвейер обработки: download (yt-dlp) → transcode (ffmpeg, force_key_frames, режимы `stories_fit`) → segment (`-c copy`) → probe (ffprobe) → ready.
 - Определён автомат состояний задачи и таксономия ошибок.
+- Каркас проекта (Фаза 0): `pyproject.toml` (hatchling, src-layout, Python 3.12+), конфигурация `ruff` (lint + format) и `mypy --strict`, `pytest`.
+- Пакет `stories_backend` с маркером `py.typed` (PEP 561) и скелетом каталогов слоёв (domain / application / infrastructure / interface / worker).
+- CI-гейт GitHub Actions: `ruff` + `mypy --strict` + `pytest`.
+- Заготовка `Dockerfile` (multi-stage) с ffmpeg/ffprobe и yt-dlp.
 
 ### Decided
 
