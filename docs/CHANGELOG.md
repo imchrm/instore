@@ -73,6 +73,15 @@
   роутер `system` (`/api/v1/health`, `/api/v1/config`).
 - Unit-тесты: настройки, мапперы и приложение (жизненный цикл, `/health`, `/config`)
   через `TestClient`. Роутеры `jobs`/`admin` - в части 2.
+- Слой interface (Фаза 5, часть 2) - роутеры бизнес-логики:
+  `routers/jobs.py` (`POST /jobs`, `GET /jobs/{id}`, `DELETE /jobs/{id}`,
+  `GET /jobs/{id}/events` - SSE, `GET /jobs/{id}/chunks/{index}` - отдача
+  кусков через `X-Accel-Redirect` в prod / `FileResponse` в dev),
+  `routers/admin.py` (cookies upload/status/delete). С этим слой interface
+  (Фаза 5) и основной функционал сервиса завершены.
+- `Dockerfile`: точка входа переключена на `uvicorn --factory create_app`.
+- Unit-тесты роутеров на приложении с fake-контейнером (аутентификация,
+  изоляция по `key_id`, валидация тела, отдача кусков, формат SSE).
 
 ### Decided
 

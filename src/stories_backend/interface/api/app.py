@@ -33,7 +33,7 @@ from stories_backend.infrastructure.process.runner import AsyncioProcessRunner
 from stories_backend.infrastructure.security.api_keys import ApiKeyRegistry
 from stories_backend.infrastructure.storage.filesystem_storage import FilesystemStorage
 from stories_backend.interface.api.container import Container
-from stories_backend.interface.api.routers import system
+from stories_backend.interface.api.routers import admin, jobs, system
 from stories_backend.interface.config import Settings
 from stories_backend.worker.queue import JobQueue
 from stories_backend.worker.scheduler import PeriodicCleanupScheduler
@@ -102,4 +102,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings if settings is not None else Settings()  # type: ignore[call-arg]
     app.state.settings = resolved
     app.include_router(system.router)
+    app.include_router(jobs.router)
+    app.include_router(admin.router)
     return app
