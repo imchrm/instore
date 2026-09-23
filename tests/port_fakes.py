@@ -40,6 +40,10 @@ class FakeJobRepository:
             if job.status is JobStatus.READY and job.updated_at <= threshold
         ]
 
+    async def list_unfinished(self) -> list[Job]:
+        terminal = {JobStatus.READY, JobStatus.FAILED, JobStatus.EXPIRED}
+        return [job for job in self.jobs.values() if job.status not in terminal]
+
 
 class FakeStorage:
     """Реализация ``StoragePort``, фиксирующая вызовы удаления.

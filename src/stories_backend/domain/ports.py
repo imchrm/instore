@@ -75,6 +75,10 @@ class JobRepositoryPort(Protocol):
 
     async def list_expired(self, ttl_seconds: int) -> list[Job]: ...
 
+    async def list_unfinished(self) -> list[Job]:
+        """Задачи в незавершённых статусах (не ready/failed/expired) для восстановления."""
+        ...
+
 
 class EventBusPort(Protocol):
     """Шина событий прогресса обработки (публикация/подписка в пределах процесса)."""

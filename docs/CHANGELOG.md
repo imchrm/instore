@@ -54,6 +54,16 @@
 - Unit-тесты оркестрации на fake-адаптерах (happy path, over_limit,
   `AUTH_REQUIRED`, `TOO_LARGE`, `TOO_LONG`, сбой скачивания). С этим слой
   application (Фаза 3) завершён.
+- Слой worker (Фаза 4):
+  `worker/queue.py` (`JobQueue` - `JobSubmitterPort` на `asyncio.Queue` с
+  фоновым потребителем и семафором `max_concurrent_jobs`),
+  `worker/scheduler.py` (`PeriodicCleanupScheduler` - периодический запуск
+  очистки по TTL, отдельный `run_once`),
+  `application/use_cases/recover_interrupted.py` (`RecoverInterruptedUseCase` -
+  пометка прерванных рестартом задач как `FAILED (INTERNAL)`).
+  Добавлен порт `JobRepositoryPort.list_unfinished` и `JobProcessorPort`.
+- Unit-тесты воркера: порядок обработки, ограничение параллелизма,
+  восстановление только in-flight задач, один проход и жизненный цикл планировщика.
 
 ### Decided
 

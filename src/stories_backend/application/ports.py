@@ -19,3 +19,9 @@ class JobSubmitterPort(Protocol):
     """Постановка задачи на асинхронную обработку (реализуется воркером)."""
 
     async def submit(self, job_id: str) -> None: ...
+
+
+class JobProcessorPort(Protocol):
+    """Обработка одной задачи по её идентификатору (реализуется сценарием process_job)."""
+
+    async def execute(self, job_id: str) -> None: ...

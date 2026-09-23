@@ -44,9 +44,9 @@
 
 ## Фаза 4. Worker
 
-- [ ] `worker/queue.py`: asyncio-очередь и воркер, семафор `MAX_CONCURRENT_JOBS`
-- [ ] Пометка прерванных рестартом задач как `failed (INTERNAL)` при старте
-- [ ] `worker/scheduler.py`: периодическая очистка по `CLEANUP_INTERVAL_SEC`
+- [x] `worker/queue.py`: asyncio-очередь и воркер, семафор `MAX_CONCURRENT_JOBS`
+- [x] Пометка прерванных рестартом задач как `failed (INTERNAL)` при старте
+- [x] `worker/scheduler.py`: периодическая очистка по `CLEANUP_INTERVAL_SEC`
 
 ## Фаза 5. Interface — API
 

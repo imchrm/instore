@@ -137,6 +137,18 @@ class SqliteJobRepository:
         await cursor.close()
         return [self._from_row(row) for row in rows]
 
+    async def list_unfinished(self) -> list[Job]:
+        """Вернуть задачи в незавершённых статусах (не ready/failed/expired)."""
+        terminal = (JobStatus.READY.value, JobStatus.FAILED.value, JobStatus.EXPIRED.value)
+        placeholders = ", ".join(["?"] * len(terminal))
+        cursor = await self._conn.execute(
+            f"SELECT * FROM jobs WHERE status NOT IN ({placeholders})",
+            terminal,
+        )
+        rows = await cursor.fetchall()
+        await cursor.close()
+        return [self._from_row(row) for row in rows]
+
     @staticmethod
     def _to_params(job: Job) -> tuple[Any, ...]:
         return (
