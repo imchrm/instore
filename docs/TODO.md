@@ -5,19 +5,19 @@
 
 ## Фаза 0. Каркас проекта
 
-- [ ] Инициализация репозитория, структура каталогов по `ARCHITECTURE.md`
-- [ ] `pyproject.toml`: Python 3.12+, зависимости (fastapi, uvicorn, pydantic v2, pydantic-settings, aiosqlite, structlog/loguru)
-- [ ] Настройка `ruff` (lint + format) и `mypy --strict`
-- [ ] Базовый `pytest` и CI-гейт (ruff + mypy + pytest)
-- [ ] Заготовка Dockerfile (multi-stage) с ffmpeg/ffprobe/yt-dlp
+- [x] Инициализация репозитория, структура каталогов по `ARCHITECTURE.md`
+- [x] `pyproject.toml`: Python 3.12+, зависимости (fastapi, uvicorn, pydantic v2, pydantic-settings, aiosqlite, structlog/loguru)
+- [x] Настройка `ruff` (lint + format) и `mypy --strict`
+- [x] Базовый `pytest` и CI-гейт (ruff + mypy + pytest)
+- [x] Заготовка Dockerfile (multi-stage) с ffmpeg/ffprobe/yt-dlp
 
 ## Фаза 1. Domain
 
-- [ ] `enums.py`: `JobStatus`, `StoriesFit`, `ErrorCode`
-- [ ] `entities.py`: `Job`, `Chunk`, `VideoMeta`
-- [ ] `errors.py`: доменные исключения с привязкой к `ErrorCode`
-- [ ] `ports.py`: все Protocol-порты (без порта публикации в Stories)
-- [ ] Unit-тесты валидности переходов автомата статусов
+- [x] `enums.py`: `JobStatus`, `StoriesFit`, `ErrorCode`
+- [x] `entities.py`: `Job`, `Chunk`, `VideoMeta`
+- [x] `errors.py`: доменные исключения с привязкой к `ErrorCode`
+- [x] `ports.py`: все Protocol-порты (без порта публикации в Stories)
+- [x] Unit-тесты валидности переходов автомата статусов
 
 ## Фаза 2. Infrastructure — адаптеры
 

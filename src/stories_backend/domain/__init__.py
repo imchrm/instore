@@ -1,0 +1,75 @@
+"""Слой domain: сущности, перечисления, доменные ошибки и порты (без внешних зависимостей)."""
+
+from __future__ import annotations
+
+from .entities import (
+    Chunk,
+    CookiesStatus,
+    Job,
+    ProgressEvent,
+    VideoMeta,
+    can_transition,
+)
+from .enums import ErrorCode, JobStatus, StoriesFit
+from .errors import (
+    AuthRequiredError,
+    DomainError,
+    DownloadFailedError,
+    GeoBlockedError,
+    InternalError,
+    InvalidStatusTransitionError,
+    SegmentFailedError,
+    TooLargeError,
+    TooLongError,
+    TranscodeFailedError,
+    UrlUnsupportedError,
+    VideoPrivateError,
+    VideoUnavailableError,
+    error_for_code,
+)
+from .ports import (
+    CookiesStorePort,
+    EventBusPort,
+    JobRepositoryPort,
+    MediaProbePort,
+    ProgressCallback,
+    SegmenterPort,
+    StoragePort,
+    TranscoderPort,
+    VideoDownloaderPort,
+)
+
+__all__ = [
+    "AuthRequiredError",
+    "Chunk",
+    "CookiesStatus",
+    "CookiesStorePort",
+    "DomainError",
+    "DownloadFailedError",
+    "ErrorCode",
+    "EventBusPort",
+    "GeoBlockedError",
+    "InternalError",
+    "InvalidStatusTransitionError",
+    "Job",
+    "JobRepositoryPort",
+    "JobStatus",
+    "MediaProbePort",
+    "ProgressCallback",
+    "ProgressEvent",
+    "SegmentFailedError",
+    "SegmenterPort",
+    "StoragePort",
+    "StoriesFit",
+    "TooLargeError",
+    "TooLongError",
+    "TranscodeFailedError",
+    "TranscoderPort",
+    "UrlUnsupportedError",
+    "VideoDownloaderPort",
+    "VideoMeta",
+    "VideoPrivateError",
+    "VideoUnavailableError",
+    "can_transition",
+    "error_for_code",
+]
