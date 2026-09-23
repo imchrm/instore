@@ -50,6 +50,9 @@ packages = ["src/stories_backend"]
 line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
+# docs/ - проектная документация (проза с иллюстративными фрагментами кода),
+# не исходники; ruff её не проверяет и не форматирует.
+extend-exclude = ["docs"]
 
 [tool.ruff.lint]
 select = [
@@ -68,6 +71,11 @@ select = [
 ]
 ignore = [
     "PLR0913", # too-many-arguments: порты domain намеренно имеют много kwargs
+    # Рабочий язык документации и комментариев - русский (см. docs/CONTEXT.md);
+    # правила о "неоднозначных" Unicode-символах дают ложные срабатывания.
+    "RUF001", # ambiguous character in identifier
+    "RUF002", # ambiguous character in docstring
+    "RUF003", # ambiguous character in comment
 ]
 
 [tool.ruff.lint.per-file-ignores]

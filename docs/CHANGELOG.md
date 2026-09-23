@@ -17,6 +17,10 @@
 - Пакет `stories_backend` с маркером `py.typed` (PEP 561) и скелетом каталогов слоёв (domain / application / infrastructure / interface / worker).
 - CI-гейт GitHub Actions: `ruff` + `mypy --strict` + `pytest`.
 - Заготовка `Dockerfile` (multi-stage) с ffmpeg/ffprobe и yt-dlp.
+- Слой domain (Фаза 1): `enums.py` (`JobStatus`, `StoriesFit`, `ErrorCode`), `entities.py` (`Job`, `Chunk`, `VideoMeta`, `ProgressEvent`, `CookiesStatus`), автомат переходов статусов (`can_transition`, `Job.transition_to`, `Job.mark_failed`).
+- `errors.py`: доменные исключения с привязкой к `ErrorCode` и функция `error_for_code`.
+- `ports.py`: Protocol-порты (downloader, transcoder, segmenter, probe, repository, event bus, storage, cookies) и тип `ProgressCallback`; порт публикации в Stories осознанно отсутствует.
+- Unit-тесты автомата состояний и доменных ошибок.
 
 ### Decided
 
