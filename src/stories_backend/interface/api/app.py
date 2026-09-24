@@ -97,9 +97,10 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Создать приложение. Без аргумента настройки читаются из окружения."""
-    app = FastAPI(title="stories-backend", lifespan=_lifespan)
     # Settings() без аргументов читает поля (в т.ч. api_keys) из окружения.
     resolved = settings if settings is not None else Settings()  # type: ignore[call-arg]
+    # root_path сообщает FastAPI о префиксе за reverse-proxy (для /docs и OpenAPI).
+    app = FastAPI(title="stories-backend", lifespan=_lifespan, root_path=resolved.root_path)
     app.state.settings = resolved
     app.include_router(system.router)
     app.include_router(jobs.router)

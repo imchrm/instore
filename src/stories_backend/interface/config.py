@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from stories_backend.application.config import ProcessingLimits
@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     )
 
     api_keys: str = Field(description="пары 'имя:ключ' через запятую")
+    root_path: str = Field(
+        default="",
+        description="публичный префикс пути за reverse-proxy (например '/instore'); пусто = корень",
+    )
     data_dir: str = "/data"
     cookies_dir: str | None = None
     job_ttl_seconds: int = 1200
@@ -39,6 +43,13 @@ class Settings(BaseSettings):
     use_xaccel: bool = False
     xaccel_internal_prefix: str = "/_protected"
     log_level: str = "INFO"
+
+    @field_validator("root_path")
+    @classmethod
+    def _normalize_root_path(cls, value: str) -> str:
+        """Нормализовать префикс: без концевого '/', с ведущим '/' (или пусто для корня)."""
+        trimmed = value.strip().strip("/")
+        return f"/{trimmed}" if trimmed else ""
 
     @property
     def resolved_cookies_dir(self) -> str:
