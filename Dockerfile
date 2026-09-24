@@ -47,6 +47,6 @@ WORKDIR /app
 
 EXPOSE 8000
 
-# Заготовка. Реальная точка входа появится после interface/api/app.py:
-#   CMD ["uvicorn", "stories_backend.interface.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
-CMD ["python", "-c", "import stories_backend; print('stories-backend', stories_backend.__version__)"]
+# Точка входа: фабрика create_app (настройки читаются из окружения, в т.ч. API_KEYS).
+CMD ["uvicorn", "--factory", "stories_backend.interface.api.app:create_app", \
+     "--host", "0.0.0.0", "--port", "8000"]
