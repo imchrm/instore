@@ -34,3 +34,23 @@ def test_resolved_cookies_dir_explicit() -> None:
     settings = Settings(api_keys="phone:secret", data_dir="/data", cookies_dir="/cookies")
 
     assert settings.resolved_cookies_dir == "/cookies"
+
+
+def test_root_path_default_is_empty() -> None:
+    settings = Settings(api_keys="phone:secret")
+
+    assert settings.root_path == ""
+
+
+def test_root_path_normalized() -> None:
+    for raw, expected in [
+        ("instore", "/instore"),
+        ("/instore", "/instore"),
+        ("/instore/", "/instore"),
+        ("  /instore/  ", "/instore"),
+        ("instore/api", "/instore/api"),
+        ("/", ""),
+        ("", ""),
+    ]:
+        settings = Settings(api_keys="phone:secret", root_path=raw)
+        assert settings.root_path == expected, raw

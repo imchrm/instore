@@ -34,7 +34,7 @@ _HEADERS = {"X-API-Key": "secret-phone"}
 class Harness:
     """Собранное тестовое приложение и его fake-зависимости."""
 
-    def __init__(self, tmp_path: Path, *, use_xaccel: bool = False) -> None:
+    def __init__(self, tmp_path: Path, *, use_xaccel: bool = False, root_path: str = "") -> None:
         self.repo = FakeJobRepository()
         self.storage = FakeStorage(base_dir=tmp_path)
         self.bus = FakeEventBus()
@@ -44,6 +44,7 @@ class Harness:
             api_keys="Phone:secret-phone, Tablet:secret-tablet",
             data_dir=str(tmp_path),
             use_xaccel=use_xaccel,
+            root_path=root_path,
         )
         container = Container(
             settings=settings,
@@ -137,6 +138,24 @@ def test_get_job_isolated_by_key(tmp_path: Path) -> None:
 
     foreign = harness.client.get("/api/v1/jobs/job-1", headers={"X-API-Key": "secret-tablet"})
     assert foreign.status_code == 404
+
+
+def test_get_job_chunk_url_without_prefix(tmp_path: Path) -> None:
+    harness = Harness(tmp_path)
+    harness.repo.jobs["job-1"] = _job_with_chunk()
+
+    body = harness.client.get("/api/v1/jobs/job-1", headers=_HEADERS).json()
+
+    assert body["chunks"][0]["url"] == "/api/v1/jobs/job-1/chunks/0"
+
+
+def test_get_job_chunk_url_uses_root_path(tmp_path: Path) -> None:
+    harness = Harness(tmp_path, root_path="/instore")
+    harness.repo.jobs["job-1"] = _job_with_chunk()
+
+    body = harness.client.get("/api/v1/jobs/job-1", headers=_HEADERS).json()
+
+    assert body["chunks"][0]["url"] == "/instore/api/v1/jobs/job-1/chunks/0"
 
 
 def test_delete_job(tmp_path: Path) -> None:

@@ -12,7 +12,11 @@ from stories_backend.application.use_cases.create_job import CreateJobCommand
 from stories_backend.domain.entities import ProgressEvent
 from stories_backend.domain.enums import JobStatus
 from stories_backend.interface.api.deps import ContainerDep, KeyIdDep
-from stories_backend.interface.api.mappers import job_to_response, progress_event_to_dto
+from stories_backend.interface.api.mappers import (
+    ChunkUrlBuilder,
+    job_to_response,
+    progress_event_to_dto,
+)
 from stories_backend.interface.api.schemas import JobCreateRequest, JobResponse
 
 router = APIRouter(prefix="/api/v1", tags=["jobs"])
@@ -21,8 +25,17 @@ _CHUNK_MEDIA_TYPE = "video/mp4"
 _TERMINAL_STATUSES = frozenset({JobStatus.READY, JobStatus.FAILED, JobStatus.EXPIRED})
 
 
-def _chunk_url(job_id: str, index: int) -> str:
-    return f"/api/v1/jobs/{job_id}/chunks/{index}"
+def _chunk_url_builder(root_path: str) -> ChunkUrlBuilder:
+    """Построитель URL куска с учётом публичного префикса за reverse-proxy.
+
+    При ``root_path='/instore'`` вернёт ``/instore/api/v1/jobs/{id}/chunks/{index}``,
+    при пустом префиксе - ``/api/v1/jobs/{id}/chunks/{index}``.
+    """
+
+    def build(job_id: str, index: int) -> str:
+        return f"{root_path}/api/v1/jobs/{job_id}/chunks/{index}"
+
+    return build
 
 
 async def _sse_stream(events: AsyncIterator[ProgressEvent]) -> AsyncIterator[str]:
@@ -52,7 +65,7 @@ async def create_job(
         use_cookies=payload.use_cookies,
     )
     job = await container.create_job.execute(command)
-    return job_to_response(job, _chunk_url)
+    return job_to_response(job, _chunk_url_builder(container.settings.root_path))
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
@@ -61,7 +74,7 @@ async def get_job(job_id: str, container: ContainerDep, key_id: KeyIdDep) -> Job
     job = await container.get_job.execute(job_id, key_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="задача не найдена")
-    return job_to_response(job, _chunk_url)
+    return job_to_response(job, _chunk_url_builder(container.settings.root_path))
 
 
 @router.delete("/jobs/{job_id}", status_code=status.HTTP_204_NO_CONTENT)

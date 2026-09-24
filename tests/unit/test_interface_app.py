@@ -38,3 +38,16 @@ def test_lifespan_creates_database(tmp_path: Path) -> None:
         pass
 
     assert (tmp_path / "jobs.sqlite3").exists()
+
+
+def test_root_path_default_empty(tmp_path: Path) -> None:
+    app = create_app(make_settings(tmp_path))
+
+    assert app.root_path == ""
+
+
+def test_root_path_propagated_to_app(tmp_path: Path) -> None:
+    settings = Settings(api_keys="phone:secret", data_dir=str(tmp_path), root_path="/instore")
+    app = create_app(settings)
+
+    assert app.root_path == "/instore"

@@ -131,25 +131,50 @@ curl -s -X POST "$BASE/jobs" \
 PyPI) либо запустить с `-e YT_DLP_AUTO_UPDATE=true` (обновление на старте,
 требует доступа к PyPI). Подробности в `DEPLOY.md`.
 
-## Опционально: nginx и X-Accel-Redirect
+## Развёртывание под подпутём `/instore` за nginx
 
-Отдача кусков через nginx (разгрузка uvicorn) - вне области Docker-only, но при
-наличии nginx на сервере включается так: запустить контейнер с
-`-e USE_XACCEL=true` и настроить internal-локацию, совпадающую с
-`XACCEL_INTERNAL_PREFIX` (по умолчанию `/_protected`), которая раздаёт файлы из
-тома `/data/jobs`. Ориентир:
+Сервис - это работающий процесс в контейнере (порт 8000), а не статика; в
+`public/instore` его класть не нужно. Снаружи он доступен по подпути через
+reverse-proxy nginx. Обязательно задать контейнеру `-e ROOT_PATH=/instore` -
+тогда URL кусков в ответах приходят с префиксом (`/instore/api/v1/...`), а
+`/docs` и OpenAPI корректны.
 
 ```nginx
-location /api/ {
-    proxy_pass http://127.0.0.1:8000;
-    proxy_buffering off;              # важно для SSE (/events)
-}
-
-location /_protected/ {
-    internal;
-    alias /path/to/stories-data/jobs/;   # тот же том, что смонтирован в /data
+# Проксирование подпути на контейнер (trailing slash срезает /instore).
+location /instore/ {
+    proxy_pass http://127.0.0.1:8000/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;          # важно для SSE (/events)
+    proxy_read_timeout 3600s;
 }
 ```
 
-Точную привязку тома к путям nginx подбирать под конкретный сервер;
-приложение лишь возвращает заголовок `X-Accel-Redirect: /_protected/<job>/<file>`.
+Проверка подпути (после запуска с `ROOT_PATH=/instore`):
+
+```sh
+KEY=СЕКРЕТНЫЙ_КЛЮЧ
+BASE=https://360tur.uz/instore/api/v1
+
+curl -s "$BASE/health"
+curl -s -H "X-API-Key: $KEY" "$BASE/config"
+# в ответе GET /jobs/{id} поле chunks[].url должно начинаться с /instore/api/v1/...
+```
+
+### Опционально: X-Accel-Redirect (разгрузка uvicorn на отдаче кусков)
+
+Включается запуском контейнера с `-e USE_XACCEL=true` и internal-локацией,
+совпадающей с `XACCEL_INTERNAL_PREFIX` (по умолчанию `/_protected`). Важно:
+эта локация описывается **на корне сервера**, а не внутри `location /instore/` -
+nginx резолвит `X-Accel-Redirect` относительно корня.
+
+```nginx
+location /_protected/ {
+    internal;
+    alias /path/to/stories-data/jobs/;   # тот же каталог, что смонтирован в /data/jobs
+}
+```
+
+Приложение лишь возвращает заголовок `X-Accel-Redirect: /_protected/<job>/<file>`;
+точную привязку тома к путям nginx подбирать под конкретный сервер.

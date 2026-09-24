@@ -53,6 +53,7 @@ curl -H "X-API-Key: СЕКРЕТНЫЙ_КЛЮЧ" http://localhost:8000/api/v1/he
 | Переменная               | По умолчанию   | Назначение                                             |
 | ------------------------ | -------------- | ------------------------------------------------------ |
 | `API_KEYS`               | (обязательна)  | пары `имя:ключ` через запятую (`key -> key_id`)        |
+| `ROOT_PATH`              | `` (корень)    | публичный префикс пути за reverse-proxy, например `/instore` (см. ниже) |
 | `DATA_DIR`               | `/data`        | каталог данных (SQLite, куски, cookies); совпадает с томом |
 | `COOKIES_DIR`            | `${DATA_DIR}/cookies` | каталог cookies по `key_id`                      |
 | `JOB_TTL_SECONDS`        | `1200`         | TTL готовых кусков перед `expired`                      |
@@ -95,6 +96,46 @@ docker run -d \
   -v stories-data:/data \
   stories-backend:latest
 ```
+
+## Развёртывание под подпутём (reverse-proxy)
+
+Если сервис доступен снаружи не на своём домене, а по подпути (например
+`https://360tur.uz/instore`), нужно:
+
+1. Запустить контейнер с `-e ROOT_PATH=/instore`. Это сообщает FastAPI префикс:
+   корректно работают `/docs`, `servers` в OpenAPI и, главное, URL кусков в
+   ответах становятся вида `/instore/api/v1/jobs/{id}/chunks/{index}`.
+2. Настроить в nginx проксирование подпути на контейнер. Клиент обращается к
+   `https://360tur.uz/instore/api/v1/...`, nginx срезает `/instore` и передаёт
+   контейнеру `/api/v1/...`.
+
+```sh
+docker run -d --name stories-backend \
+  -p 127.0.0.1:8000:8000 \
+  -e API_KEYS="mobile:СЕКРЕТНЫЙ_КЛЮЧ" \
+  -e ROOT_PATH=/instore \
+  -v stories-data:/data \
+  stories-backend:latest
+```
+
+```nginx
+# Проксирование подпути на контейнер (trailing slash в proxy_pass срезает /instore).
+location /instore/ {
+    proxy_pass http://127.0.0.1:8000/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;          # обязательно для SSE (/events)
+    proxy_read_timeout 3600s;     # длинный поток прогресса
+}
+```
+
+`ROOT_PATH` - единственное, что нужно поменять в приложении: пути файловой
+системы контейнера (`/data`, том) от префикса не зависят. Внутренняя локация
+для `X-Accel-Redirect` (`/_protected/`, если `USE_XACCEL=true`) описывается на
+корне сервера, а не внутри блока `location /instore/` (см. `MANUAL_CHECKS.md`).
 
 ## Instagram cookies
 
