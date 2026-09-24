@@ -82,6 +82,15 @@
 - `Dockerfile`: точка входа переключена на `uvicorn --factory create_app`.
 - Unit-тесты роутеров на приложении с fake-контейнером (аутентификация,
   изоляция по `key_id`, валидация тела, отдача кусков, формат SSE).
+- Деплой (Фаза 7, только Docker-образ):
+  финализация `Dockerfile` (том `/data`, непривилегированный пользователь
+  `app`, `HEALTHCHECK` по `/api/v1/health`, entrypoint),
+  `docker-entrypoint.sh` (опциональное обновление `yt-dlp` по
+  `YT_DLP_AUTO_UPDATE`, затем запуск `CMD`),
+  `.dockerignore` (минимальный контекст сборки: `pyproject.toml`, `src`,
+  entrypoint),
+  `docs/DEPLOY.md` (сборка, запуск, таблица ENV, обновление `yt-dlp`,
+  cookies, бэкап тома, проверка живости).
 
 ### Decided
 
