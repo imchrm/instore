@@ -113,6 +113,8 @@ async def test_segment_lists_produced_files(tmp_path: Path) -> None:
     ]
     assert "copy" in runner.calls[0]
     assert "segment" in runner.calls[0]
+    # Гарантия нарезки по кейфрейму на границе сегмента (см. _SEGMENT_TIME_DELTA).
+    assert "-segment_time_delta" in runner.calls[0]
 
 
 async def test_segment_nonzero_raises(tmp_path: Path) -> None:
