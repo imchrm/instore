@@ -24,3 +24,8 @@ dist/
 
 # OS
 .DS_Store
+
+# Локальные секреты и окружение (шаблон .env.example - под контролем версий)
+.env
+*.env
+!.env.example
