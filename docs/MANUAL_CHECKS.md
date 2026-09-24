@@ -11,7 +11,7 @@
 
 - `ruff check .` и `ruff format --check .` - без замечаний;
 - `mypy .` (strict) - без ошибок;
-- `pytest` - unit-тесты всех слоёв (137) + integration-тесты конвейера (2);
+- `pytest` - unit-тесты всех слоёв (143) + integration-тесты конвейера (2);
 - integration-тест гоняет реальные `ffmpeg`/`ffprobe` на сгенерированном mp4:
   transcode -> segment -> probe -> ready, проверяет длину кусков
   (<= `KEYFRAME_LIMIT_SEC` и <= `segment_time`), manifest и удаление
@@ -49,18 +49,30 @@ integration-тесты выполняются и в CI.
 
 ### 1. Сборка и запуск
 
+Переменные окружения задаются через `--env-file` (шаблон - `.env.example` в
+корне репозитория; способы передачи и безопасность - в `DEPLOY.md`, раздел
+"Где хранить переменные"). Для развёртывания по подпути в файле должно быть
+`ROOT_PATH=/instore`.
+
 ```sh
 docker build -t stories-backend:latest .
 
+# instore.env - копия .env.example вне public/, chmod 600, с реальным API_KEYS
 docker run -d --name stories-backend \
-  -p 8000:8000 \
-  -e API_KEYS="mobile:СЕКРЕТНЫЙ_КЛЮЧ" \
+  -p 127.0.0.1:8000:8000 \
+  --env-file /srv/instore/instore.env \
   -v stories-data:/data \
   stories-backend:latest
 
 docker ps            # STATUS должен стать healthy (HEALTHCHECK по /health)
 docker logs -f stories-backend
 ```
+
+Порт привязан к `127.0.0.1` - контейнер доступен только локально, наружу его
+публикует nginx (см. раздел про подпуть ниже). Прямые smoke-проверки ниже
+обращаются к контейнеру на `localhost:8000` в обход nginx; `ROOT_PATH` на
+маршрутизацию не влияет (эндпоинты всё равно на `/api/v1`), он лишь добавляет
+префикс в генерируемые URL кусков и в `/docs`.
 
 ### 2. Health и config
 
@@ -128,8 +140,9 @@ curl -s -X POST "$BASE/jobs" \
 ### 6. Обновление yt-dlp (при ошибках скачивания)
 
 Если YouTube/Instagram сломали выгрузку - пересобрать образ (свежий `yt-dlp` с
-PyPI) либо запустить с `-e YT_DLP_AUTO_UPDATE=true` (обновление на старте,
-требует доступа к PyPI). Подробности в `DEPLOY.md`.
+PyPI) либо включить обновление на старте: `YT_DLP_AUTO_UPDATE=true` (в
+`--env-file` или разово через `-e`; требует доступа к PyPI). Подробности в
+`DEPLOY.md`.
 
 ## Развёртывание под подпутём `/instore` за nginx
 
