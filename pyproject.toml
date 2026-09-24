@@ -110,3 +110,6 @@ addopts = "-ra -q --strict-markers --strict-config --import-mode=importlib"
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration: тесты, требующие внешних бинарников (ffmpeg/ffprobe); запускать при их наличии",
+]

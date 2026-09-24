@@ -11,6 +11,13 @@ from stories_backend.infrastructure.process.runner import ProcessRunner
 _STDERR_TAIL = 400
 _PRINTF_TOKEN = re.compile(r"%\d*d")
 
+# Допуск выбора точки нарезки. Кейфреймы форсируются ровно на границах сегмента
+# (t = n*segment_time), но муксер segment режет на первом кейфрейме строго
+# ПОЗЖЕ границы, из-за чего кейфрейм точно на границе пропускается и сегмент
+# получается двойной длины. Небольшой delta включает пограничный кейфрейм в
+# окно нарезки и гарантирует куски не длиннее segment_time.
+_SEGMENT_TIME_DELTA = "0.1"
+
 
 def _pattern_to_glob(name: str) -> str:
     """Преобразовать printf-шаблон имени (``conv_%03d.mp4``) в glob (``conv_*.mp4``)."""
@@ -37,6 +44,8 @@ class FfmpegSegmenter:
             "0",
             "-segment_time",
             str(segment_time),
+            "-segment_time_delta",
+            _SEGMENT_TIME_DELTA,
             "-f",
             "segment",
             "-reset_timestamps",
