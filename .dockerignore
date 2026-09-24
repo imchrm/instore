@@ -1,0 +1,27 @@
+# Оставляем в контексте сборки только то, что нужно образу (pyproject.toml, src,
+# docker-entrypoint.sh). Всё лишнее исключаем для скорости и воспроизводимости.
+.git
+.github
+.venv
+venv
+env
+docs
+tests
+*.md
+.gitignore
+.dockerignore
+Dockerfile
+
+# Python-мусор и кэши
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Локальные данные и окружение
+.env
+data/

@@ -67,10 +67,15 @@
 
 ## Фаза 7. Деплой
 
-- [ ] Финализация Dockerfile и docker-compose (сервис + том `DATA_DIR`)
-- [ ] Конфиг nginx: проксирование API + internal-локация для X-Accel-Redirect
-- [ ] Механизм обновления `yt-dlp` (пересборка по расписанию или шаг при старте)
-- [ ] Прогон end-to-end на реальном URL (YouTube и Instagram с cookies)
+Область по решению: только Docker-образ (без docker-compose и nginx).
+
+- [x] Финализация Dockerfile (том `DATA_DIR`, непривилегированный пользователь, HEALTHCHECK, entrypoint)
+- [x] `.dockerignore` (минимальный контекст сборки: `pyproject.toml`, `src`, entrypoint)
+- [x] Механизм обновления `yt-dlp` (пересборка образа или шаг при старте по `YT_DLP_AUTO_UPDATE`)
+- [x] Инструкция по деплою `docs/DEPLOY.md` (сборка, запуск, ENV, cookies, бэкап)
+- [~] docker-compose (сервис + том `DATA_DIR`) — вне области (одиночный образ)
+- [~] Конфиг nginx: проксирование API + internal-локация для X-Accel-Redirect — вне области
+- [ ] Прогон end-to-end на реальном URL (YouTube и Instagram с cookies) — на стороне пользователя
 
 ## Открытые вопросы (вести по мере появления)
 
