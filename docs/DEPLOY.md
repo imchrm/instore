@@ -172,6 +172,56 @@ location /instore/ {
 для `X-Accel-Redirect` (`/_protected/`, если `USE_XACCEL=true`) описывается на
 корне сервера, а не внутри блока `location /instore/` (см. `MANUAL_CHECKS.md`).
 
+Пример выше с `proxy_pass http://127.0.0.1:8000/` подходит, когда **nginx
+запущен прямо на хосте**. Если nginx работает в контейнере - см. врезку ниже.
+
+### Если nginx работает в контейнере
+
+Когда nginx сам в контейнере (например, рядом в docker compose), `127.0.0.1`
+внутри nginx - это его собственный loopback, а не хост. Опубликованный на хосте
+порт `127.0.0.1:8000` из nginx-контейнера по `127.0.0.1` недоступен, и
+`proxy_pass http://127.0.0.1:8000/` даст `502`. Правильно - соединить оба
+контейнера общей docker-сетью и проксировать по имени контейнера сервиса.
+
+1. Узнать сеть nginx и подключить к ней контейнер сервиса:
+   ```sh
+   docker inspect <nginx-контейнер> --format '{{json .NetworkSettings.Networks}}'
+   docker network connect <имя_сети> stories-backend
+   # проверить резолв изнутри nginx:
+   docker exec <nginx-контейнер> wget -qO- http://stories-backend:8000/api/v1/health
+   ```
+   (Чище - объявить `stories-backend` сервисом в том же `docker-compose.yml`:
+   тогда общая сеть и DNS по имени сервиса настраиваются автоматически.)
+
+2. В конфиге nginx проксировать по имени контейнера, а не по `127.0.0.1`:
+   ```nginx
+   location /instore/ {
+       proxy_pass http://stories-backend:8000/;   # имя контейнера в общей сети
+       proxy_http_version 1.1;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_buffering off;          # обязательно для SSE (/events)
+       proxy_read_timeout 3600s;
+   }
+   ```
+   Блок помещается в тот `server`-блок, что слушает `443` (рядом с остальными
+   `location`); порядок не важен - nginx выбирает самый длинный префикс.
+
+3. Если конфиг nginx смонтирован с хоста (bind-mount `conf.d`), правьте файл на
+   хосте и перечитайте конфиг; правка «изнутри» контейнера не переживёт
+   пересоздание:
+   ```sh
+   docker exec <nginx-контейнер> nginx -t
+   docker exec <nginx-контейнер> nginx -s reload
+   # проверить, что блок загрузился:
+   docker exec <nginx-контейнер> nginx -T 2>/dev/null | grep -n instore
+   ```
+   `nginx -T` печатает конфиг с диска: если `grep` пуст, блок не в том файле,
+   что читает контейнер (проверьте `docker inspect <nginx> --format '{{json .Mounts}}'`).
+
+Публикацию `-p 127.0.0.1:8000:8000` можно оставить - удобна для локальных
+smoke-проверок с хоста и nginx-контейнеру не мешает.
+
 ## Instagram cookies
 
 Для приватного/возрастного контента Instagram нужны cookies. Они загружаются
