@@ -11,7 +11,10 @@ import pytest
 
 from port_fakes import FakeCookiesStore, FakeEventBus, FakeJobRepository, FakeStorage
 from stories_backend.application.config import ProcessingLimits
-from stories_backend.application.services.job_processing import JobProcessingService
+from stories_backend.application.services.job_processing import (
+    JobProcessingService,
+    plan_segment_seconds,
+)
 from stories_backend.application.use_cases.process_job import ProcessJobUseCase
 from stories_backend.domain.entities import Job, VideoMeta
 from stories_backend.domain.enums import ErrorCode, JobStatus, StoriesFit
@@ -66,7 +69,7 @@ class FakeTranscoder:
         src: str,
         dest: str,
         *,
-        segment_time: int,
+        segment_time: float,
         fps: int,
         stories_fit: StoriesFit,
         on_progress: ProgressCallback,
@@ -80,8 +83,10 @@ class FakeSegmenter:
 
     def __init__(self, contents: list[bytes]) -> None:
         self._contents = contents
+        self.segment_time_used: float | None = None
 
-    async def segment(self, src: str, out_pattern: str, *, segment_time: int) -> list[str]:
+    async def segment(self, src: str, out_pattern: str, *, segment_time: float) -> list[str]:
+        self.segment_time_used = segment_time
         parent = Path(out_pattern).parent
         paths: list[str] = []
         for index, content in enumerate(self._contents):
@@ -92,12 +97,20 @@ class FakeSegmenter:
 
 
 class FakeProbe:
-    """Заглушка ``MediaProbePort`` с длительностями по порядку кусков."""
+    """Заглушка ``MediaProbePort``.
 
-    def __init__(self, durations: list[float]) -> None:
+    Для исходника (``source.*``) возвращает ``source_duration`` - его меряет
+    планировщик нарезки; для остальных путей отдаёт длительности кусков по
+    порядку.
+    """
+
+    def __init__(self, durations: list[float], *, source_duration: float = 10.0) -> None:
         self._durations = iter(durations)
+        self._source_duration = source_duration
 
     async def duration_sec(self, path: str) -> float:
+        if Path(path).name.startswith("source"):
+            return self._source_duration
         return next(self._durations)
 
 
@@ -335,3 +348,65 @@ async def test_process_job_use_case_missing_is_noop(tmp_path: Path, missing: str
 
     await use_case.execute(missing)
     assert bus.published == []
+
+
+# --- планировщик длины сегмента --------------------------------------------
+
+
+def test_plan_no_split_when_within_limit() -> None:
+    # Ролик короче предела -> один кусок (граница нарезки за пределом видео).
+    seg = plan_segment_seconds(47.0, limit_sec=60, target_sec=45)
+    assert seg > 47.0
+
+
+def test_plan_boundary_equal_limit_is_single() -> None:
+    seg = plan_segment_seconds(60.0, limit_sec=60, target_sec=45)
+    assert seg > 60.0
+
+
+def test_plan_even_split_avoids_tiny_tail() -> None:
+    # 92 c при цели 45 -> 3 равные части ~30.7 c, а не 45+45+2.
+    seg = plan_segment_seconds(92.0, limit_sec=60, target_sec=45)
+    assert seg <= 45.0
+    assert round(92.0 / seg) == 3
+    assert abs(seg - 92.0 / 3) < 1e-6
+
+
+def test_plan_keeps_under_limit_with_large_target() -> None:
+    # Большая цель ограничивается пределом и запасом: 120 c -> 3 части по 40.
+    seg = plan_segment_seconds(120.0, limit_sec=60, target_sec=100)
+    assert seg <= 60 - 0.5
+    assert round(120.0 / seg) == 3
+
+
+def test_plan_zero_duration_is_single() -> None:
+    assert plan_segment_seconds(0.0, limit_sec=60, target_sec=45) == 1.0
+
+
+async def test_pipeline_plans_segment_from_source_duration(tmp_path: Path) -> None:
+    # Оркестратор берёт длительность исходника (source_duration) и передаёт
+    # планированную длину сегмента в segmenter.
+    repo = FakeJobRepository()
+    bus = FakeEventBus()
+    meta = VideoMeta(title=None, duration_sec=None, filesize_bytes=None, height=None)
+    segmenter = FakeSegmenter([b"c0"])
+    service = build_service(
+        tmp_path,
+        repo=repo,
+        bus=bus,
+        storage=FakeStorage(base_dir=tmp_path),
+        cookies=FakeCookiesStore(),
+        downloader=FakeDownloader(meta),
+        segmenter=segmenter,
+        probe=FakeProbe([10.0], source_duration=30.0),
+        limits=ProcessingLimits(keyframe_limit_sec=60, segment_time_default=45),
+    )
+    job = make_job()
+    await repo.add(job)
+
+    await service.process(job)
+
+    assert job.status is JobStatus.READY
+    # 30 c <= 60 -> один кусок: сегмент больше длительности исходника.
+    assert segmenter.segment_time_used is not None
+    assert segmenter.segment_time_used > 30.0

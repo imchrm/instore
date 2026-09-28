@@ -116,12 +116,13 @@ def _build_service(
     bus: FakeEventBus,
     storage: FilesystemStorage,
     downloader: LocalFileDownloader,
+    keyframe_limit_sec: int = _KEYFRAME_LIMIT_SEC,
 ) -> JobProcessingService:
     runner = AsyncioProcessRunner()
     probe = FfprobeMediaProbe(runner)
     limits = ProcessingLimits(
         segment_time_default=_SEGMENT_TIME,
-        keyframe_limit_sec=_KEYFRAME_LIMIT_SEC,
+        keyframe_limit_sec=keyframe_limit_sec,
         target_fps=30,
     )
     return JobProcessingService(
@@ -227,3 +228,29 @@ async def test_pipeline_writes_manifest_and_removes_intermediate(
         JobStatus.PROBING,
         JobStatus.READY,
     ]
+
+
+async def test_pipeline_single_chunk_when_within_limit(sample_video: Path, tmp_path: Path) -> None:
+    # Исходник ~12 c и лимит 30 c: всё видео влезает -> один кусок, без нарезки.
+    repo = FakeJobRepository()
+    bus = FakeEventBus()
+    storage = FilesystemStorage(tmp_path)
+    service = _build_service(
+        tmp_path,
+        repo=repo,
+        bus=bus,
+        storage=storage,
+        downloader=LocalFileDownloader(sample_video),
+        keyframe_limit_sec=30,
+    )
+    job = _make_job()
+    await repo.add(job)
+
+    await service.process(job)
+
+    assert job.status is JobStatus.READY, job.error_message
+    assert len(job.chunks) == 1
+    chunk = job.chunks[0]
+    assert chunk.index == 0
+    assert chunk.over_limit is False
+    assert _SOURCE_DURATION_SEC - 1.5 <= chunk.duration_sec <= _SOURCE_DURATION_SEC + 1.5

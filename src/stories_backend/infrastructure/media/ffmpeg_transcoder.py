@@ -62,7 +62,7 @@ class FfmpegTranscoder:
         src: str,
         dest: str,
         *,
-        segment_time: int,
+        segment_time: float,
         fps: int,
         stories_fit: StoriesFit,
         on_progress: ProgressCallback,
@@ -91,7 +91,7 @@ class FfmpegTranscoder:
         src: str,
         dest: str,
         *,
-        segment_time: int,
+        segment_time: float,
         fps: int,
         stories_fit: StoriesFit,
     ) -> list[str]:
@@ -114,7 +114,7 @@ class FfmpegTranscoder:
         argv.extend(
             [
                 "-force_key_frames",
-                f"expr:gte(t,n_forced*{segment_time})",
+                f"expr:gte(t,n_forced*{segment_time:.3f})",
                 "-c:a",
                 "aac",
                 "-b:a",
