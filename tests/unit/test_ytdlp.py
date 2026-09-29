@@ -137,6 +137,28 @@ async def test_download_returns_source_path_and_progress(tmp_path: Path) -> None
     assert "50M" in runner.calls[0]
 
 
+async def test_download_format_selector_has_fallback(tmp_path: Path) -> None:
+    (tmp_path / "source.mp4").write_bytes(b"data")
+    runner = FakeProcessRunner()
+    downloader = YtDlpDownloader(runner)
+
+    await downloader.download(
+        "https://example.com/v",
+        str(tmp_path),
+        max_height=480,
+        max_filesize_mb=50,
+        cookies_path=None,
+        on_progress=ProgressCollector(),
+    )
+
+    argv = runner.calls[0]
+    fmt = argv[argv.index("-f") + 1]
+    # Ветки под запрошенную высоту...
+    assert "bv*[height<=480]+ba/b[height<=480]" in fmt
+    # ...и безусловные фолбэки, чтобы не падать при отсутствии такой высоты.
+    assert fmt.endswith("/bv*+ba/b")
+
+
 async def test_download_ignores_part_files(tmp_path: Path) -> None:
     (tmp_path / "source.mp4.part").write_bytes(b"partial")
     (tmp_path / "source.mp4").write_bytes(b"data")

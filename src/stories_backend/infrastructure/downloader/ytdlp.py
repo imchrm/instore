@@ -97,7 +97,14 @@ class YtDlpDownloader:
             "--no-playlist",
             "--newline",
             "-f",
-            f"bv*[height<={max_height}]+ba/b[height<={max_height}]",
+            # Ветки по убыванию приоритета: 1) видео <=max_height + аудио,
+            # 2) муксированный <=max_height, 3) любое лучшее видео + аудио,
+            # 4) любой муксированный. Фолбэки 3-4 не дают падать с
+            # VIDEO_UNAVAILABLE, когда под запрошенную высоту формата нет
+            # (например у Instagram минимальная высота выше max_height, либо
+            # высота в метаданных не указана). Размер по-прежнему ограничен
+            # через --max-filesize, поэтому "тяжёлые" ролики всё равно отсекаются.
+            (f"bv*[height<={max_height}]+ba/b[height<={max_height}]/bv*+ba/b"),
             "--max-filesize",
             f"{max_filesize_mb}M",
             "-o",
