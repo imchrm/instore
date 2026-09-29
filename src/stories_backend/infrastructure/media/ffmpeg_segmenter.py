@@ -31,7 +31,7 @@ class FfmpegSegmenter:
         self._runner = runner
         self._ffmpeg_bin = ffmpeg_bin
 
-    async def segment(self, src: str, out_pattern: str, *, segment_time: int) -> list[str]:
+    async def segment(self, src: str, out_pattern: str, *, segment_time: float) -> list[str]:
         argv = [
             self._ffmpeg_bin,
             "-hide_banner",
@@ -43,7 +43,7 @@ class FfmpegSegmenter:
             "-map",
             "0",
             "-segment_time",
-            str(segment_time),
+            f"{segment_time:.3f}",
             "-segment_time_delta",
             _SEGMENT_TIME_DELTA,
             "-f",

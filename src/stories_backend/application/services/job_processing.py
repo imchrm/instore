@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import math
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -42,6 +43,30 @@ _CONV_NAME = "conv.mp4"
 _SEGMENT_PATTERN = "conv_%03d.mp4"
 _MANIFEST_NAME = "manifest.json"
 _HASH_CHUNK = 1024 * 1024
+# Запас под погрешность нарезки (округление контейнера + segment_time_delta),
+# чтобы куски гарантированно оставались строго меньше предельной длины.
+_SEGMENT_SAFETY_MARGIN_SEC = 0.5
+
+
+def plan_segment_seconds(duration_sec: float, *, limit_sec: int, target_sec: int) -> float:
+    """Спланировать длину сегмента (сек) для нарезки видео.
+
+    Правило: если всё видео умещается в ``limit_sec`` (предел куска, обычно
+    ``keyframe_limit_sec`` = 60), не резать - вернуть длину больше исходной, чтобы
+    получился один кусок. Иначе резать на равные части, каждая строго меньше
+    ``limit_sec`` (с запасом ``_SEGMENT_SAFETY_MARGIN_SEC``), с целевой
+    гранулярностью ``target_sec`` (``segment_time`` из запроса). Равномерное
+    деление исключает крошечные «хвосты» вроде 2 c.
+    """
+    if duration_sec <= 0:
+        return 1.0  # вырожденный случай: один кусок
+    if duration_sec <= limit_sec:
+        return duration_sec + 1.0  # один кусок (граница нарезки за пределом видео)
+    effective = min(target_sec, limit_sec)
+    count = math.ceil(duration_sec / effective)
+    while duration_sec / count > limit_sec - _SEGMENT_SAFETY_MARGIN_SEC:
+        count += 1
+    return duration_sec / count
 
 
 class JobProcessingService:
@@ -98,12 +123,14 @@ class JobProcessingService:
             on_progress=self._progress(job, JobStatus.DOWNLOADING),
         )
 
+        segment_seconds = await self._plan_segments(source_path, job)
+
         await self._enter(job, JobStatus.TRANSCODING)
         conv_path = str(Path(job_dir) / _CONV_NAME)
         await self._transcoder.transcode(
             source_path,
             conv_path,
-            segment_time=job.segment_time,
+            segment_time=segment_seconds,
             fps=self._limits.target_fps,
             stories_fit=job.stories_fit,
             on_progress=self._progress(job, JobStatus.TRANSCODING),
@@ -112,7 +139,7 @@ class JobProcessingService:
         await self._enter(job, JobStatus.SEGMENTING)
         out_pattern = str(Path(job_dir) / _SEGMENT_PATTERN)
         chunk_paths = await self._segmenter.segment(
-            conv_path, out_pattern, segment_time=job.segment_time
+            conv_path, out_pattern, segment_time=segment_seconds
         )
 
         await self._enter(job, JobStatus.PROBING)
@@ -130,6 +157,23 @@ class JobProcessingService:
             msg = "требуются cookies, но файл для ключа отсутствует"
             raise AuthRequiredError(msg)
         return path
+
+    async def _plan_segments(self, source_path: str, job: Job) -> float:
+        """Длина сегмента по фактической длительности исходника (ffprobe).
+
+        Замер по файлу надёжнее метаданных источника (у Instagram ``duration``
+        бывает ``null``). При сбое замера деградируем к фиксированному шагу из
+        запроса.
+        """
+        try:
+            duration = await self._probe.duration_sec(source_path)
+        except DomainError:
+            return float(job.segment_time)
+        return plan_segment_seconds(
+            duration,
+            limit_sec=self._limits.keyframe_limit_sec,
+            target_sec=job.segment_time,
+        )
 
     def _check_source_limits(self, meta: VideoMeta) -> None:
         max_bytes = self._limits.max_filesize_mb * _MB

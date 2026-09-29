@@ -43,7 +43,7 @@ class TranscoderPort(Protocol):
         src: str,
         dest: str,
         *,
-        segment_time: int,
+        segment_time: float,
         fps: int,
         stories_fit: StoriesFit,
         on_progress: ProgressCallback,
@@ -53,7 +53,7 @@ class TranscoderPort(Protocol):
 class SegmenterPort(Protocol):
     """Нарезка перекодированного видео на сегменты копированием потока."""
 
-    async def segment(self, src: str, out_pattern: str, *, segment_time: int) -> list[str]: ...
+    async def segment(self, src: str, out_pattern: str, *, segment_time: float) -> list[str]: ...
 
 
 class MediaProbePort(Protocol):
