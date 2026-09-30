@@ -46,6 +46,36 @@ docker run -d \
 curl -H "X-API-Key: СЕКРЕТНЫЙ_КЛЮЧ" http://localhost:8000/api/v1/health
 ```
 
+## Обновление образа: пересоздавать контейнер, а не `restart`
+
+`docker restart` только перезапускает процесс в существующем контейнере и **не
+подхватывает пересобранный образ** - контейнер остаётся привязан к образу, из
+которого был создан командой `docker run`. Чтобы применить новый образ, контейнер
+нужно **пересоздать** (`rm` + `run`):
+
+```sh
+git pull origin main
+docker build -t stories-backend:latest .
+docker rm -f stories-backend
+docker run -d --name stories-backend \
+  -p 127.0.0.1:8000:8000 \
+  --env-file /srv/instore/instore.env \
+  -v stories-data:/data \
+  stories-backend:latest
+```
+
+При пересоздании контейнер выпадает из общей docker-сети с nginx - подключить
+заново, иначе проксирование по имени вернёт `502`:
+
+```sh
+docker network connect <сеть_nginx> stories-backend
+```
+
+То же касается обновления `yt-dlp` пересборкой образа (см. ниже): после
+`docker build` контейнер надо пересоздать. Проще держать сервис в общем с nginx
+`docker-compose.yml`: `docker compose up -d --build stories-backend` пересоберёт
+и пересоздаст контейнер в той же сети без ручного `docker network connect`.
+
 ## Переменные окружения
 
 Читаются классом `Settings` (Pydantic Settings), имена без учёта регистра.
