@@ -84,43 +84,135 @@ curl -s "$BASE/health"
 curl -s -H "X-API-Key: $KEY" "$BASE/config"
 ```
 
-### 3. Полный цикл обработки (YouTube)
+### 3. Сценарий A: YouTube - полный happy-path (до `ready`)
+
+Предусловие: если обновлял код, пересобери образ и **пересоздай** контейнер
+(`docker restart` не подхватывает новый образ - см. README/`DEPLOY.md`, раздел
+«Обновление образа»):
 
 ```sh
-# создать задачу
-curl -s -X POST "$BASE/jobs" \
+cd /opt/360tur/srv/instore \
+  && git pull origin main \
+  && docker build -t stories-backend:latest . \
+  && docker rm -f stories-backend \
+  && docker run -d --name stories-backend \
+       -p 127.0.0.1:8000:8000 \
+       --env-file /srv/instore/instore.env \
+       -v stories-data:/data \
+       stories-backend:latest
+# если nginx в контейнере - вернуть сервис в общую сеть:
+docker network connect <сеть_nginx> stories-backend
+docker ps --filter name=stories-backend   # STATUS -> healthy
+```
+
+Хелпер ожидания готовности (вставить в шелл один раз; использует `KEY`/`BASE`
+из шага 2):
+
+```sh
+wait_ready() {
+  JOB="$1"
+  for i in $(seq 1 90); do
+    S=$(curl -s -H "X-API-Key: $KEY" "$BASE/jobs/$JOB")
+    printf '%s' "$S" | grep -o '"status":"[^"]*"' | head -1
+    case "$S" in
+      *'"status":"ready"'*)  echo "$S"; return 0 ;;
+      *'"status":"failed"'*) echo "$S"; return 1 ;;
+    esac
+    sleep 2
+  done
+  echo "timeout"; return 2
+}
+```
+
+#### A1. Короткий ролик (< 60 c) -> ожидаем один кусок
+
+```sh
+RESP=$(curl -s -X POST "$BASE/jobs" \
   -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
-  -d '{"url":"https://www.youtube.com/watch?v=XXXX","segment_time":45,"stories_fit":"none"}'
-# -> {"job_id":"...","status":"queued",...}
+  -d '{"url":"https://www.youtube.com/watch?v=КОРОТКИЙ","segment_time":45,"stories_fit":"none"}')
+echo "$RESP"
+JOB=$(printf '%s' "$RESP" | grep -o '"job_id":"[^"]*"' | cut -d'"' -f4); echo "JOB=$JOB"
 
-JOB=<job_id из ответа>
-
-# поток прогресса (SSE)
+# поток прогресса (SSE) - по желанию, Ctrl+C после ready
 curl -N -H "X-API-Key: $KEY" "$BASE/jobs/$JOB/events"
 
-# статус/манифест
-curl -s -H "X-API-Key: $KEY" "$BASE/jobs/$JOB"   # ждём "status":"ready"
-
-# скачать первый кусок
-curl -s -H "X-API-Key: $KEY" "$BASE/jobs/$JOB/chunks/0" -o chunk0.mp4
+wait_ready "$JOB"
+curl -s -H "X-API-Key: $KEY" "$BASE/jobs/$JOB/chunks/0" -o /tmp/c0.mp4 && ls -l /tmp/c0.mp4
 ```
 
-### 4. Проверка гарантии длины кусков
+Критерий A1: `status=ready`, ровно **1** кусок, `over_limit=false`, `url` с
+префиксом `/instore/api/v1/...`, кусок скачивается.
 
-После `ready` каждый кусок должен быть не длиннее `segment_time` (45 c) и не
-превышать `KEYFRAME_LIMIT_SEC` (60 c). Это как раз тот дефект, что был найден
-integration-тестом и исправлен (`-segment_time_delta`). Проверка на хосте
-(если есть `ffprobe`) или внутри контейнера:
+#### A2. Длинный ролик (> 60 c, ~3 мин) -> равномерная нарезка
 
 ```sh
-# внутри контейнера тома видно как /data/jobs/<job_id>/conv_*.mp4
-docker exec stories-backend sh -c \
-  'for f in /data/jobs/'"$JOB"'/conv_*.mp4; do \
-     echo -n "$f "; ffprobe -v error -show_entries format=duration -of csv=p=0 "$f"; done'
-# каждое значение должно быть <= ~45
+RESP=$(curl -s -X POST "$BASE/jobs" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"url":"https://www.youtube.com/watch?v=ТРЁХМИНУТНЫЙ","segment_time":45,"max_height":480,"stories_fit":"none"}')
+echo "$RESP"
+JOB=$(printf '%s' "$RESP" | grep -o '"job_id":"[^"]*"' | cut -d'"' -f4); echo "JOB=$JOB"
+wait_ready "$JOB"
 ```
 
-В ответе `GET /jobs/{id}` у кусков поле `over_limit` должно быть `false` у всех.
+`max_height:480` - чтобы уложиться в `MAX_FILESIZE_MB=50` (иначе `TOO_LARGE`);
+при необходимости снизить до 360 или временно поднять лимит в `instore.env` и
+пересоздать контейнер.
+
+Критерий A2: `status=ready`, кусков **несколько**, **все** `over_limit=false`,
+длительности < 60 c и **равномерны** (без крошечного «хвоста» - подтверждает
+PR #17: `92 c -> ~46+46`, а не `45+45+2`).
+
+#### Сводка по задаче
+
+С `jq` (обрати внимание: символ `|` - обычный ASCII):
+
+```sh
+curl -s -H "X-API-Key: $KEY" "$BASE/jobs/$JOB" | jq '{
+  status,
+  chunks: (.chunks | length),
+  over_limit: [.chunks[].over_limit],
+  durations: [.chunks[].duration_sec],
+  urls: [.chunks[].url]
+}'
+```
+
+Без `jq` - на `grep`:
+
+```sh
+S=$(curl -s -H "X-API-Key: $KEY" "$BASE/jobs/$JOB")
+printf '%s' "$S" | grep -o '"status":"[^"]*"'
+printf '%s' "$S" | grep -o '"index":[0-9]*' | wc -l    # число кусков
+printf '%s' "$S" | grep -o '"over_limit":[a-z]*'       # все false
+printf '%s' "$S" | grep -o '"url":"[^"]*"'             # с /instore/api/v1/...
+```
+
+Через nginx снаружи `BASE=https://360tur.uz/instore/api/v1` - результат тот же,
+`chunks[].url` в обоих случаях приходят с префиксом `/instore/...` (`ROOT_PATH`).
+
+### 4. Проверка длительностей и очистки промежуточных файлов
+
+Длительности напрямую по файлам (пока не истёк TTL готовых кусков, 20 мин):
+
+```sh
+docker exec stories-backend sh -c \
+  "for f in /data/jobs/$JOB/conv_*.mp4; do echo -n \"\$f \"; \
+   ffprobe -v error -show_entries format=duration -of csv=p=0 \"\$f\"; done"
+```
+
+Ожидаемо: A1 - одна строка ≈ длине ролика; A2 - несколько примерно равных
+строк, каждая < 60 c. Правило нарезки после PR #17: видео ≤ `KEYFRAME_LIMIT_SEC`
+(60 c) отдаётся одним куском, более длинное режется на равные части (каждая
+строго меньше лимита) - поэтому `over_limit=false` у всех и крошечных хвостов
+нет.
+
+Очистка промежуточных файлов:
+
+```sh
+docker exec stories-backend ls -la /data/jobs/$JOB/
+```
+
+Ожидаемо: только `conv_000.mp4` (и далее по индексам) + `manifest.json`. Файлов
+`source.*` и `conv.mp4` быть не должно (удаляются после `probe`).
 
 ### 5. Instagram + cookies
 
