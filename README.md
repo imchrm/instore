@@ -73,12 +73,45 @@ pytest
 ## Docker
 
 Многоступенчатый образ (`Dockerfile`) собирает зависимости в изолированный
-`venv` и добавляет `ffmpeg`/`ffprobe` в рантайм. Точка входа (uvicorn)
-появится после реализации HTTP API.
+`venv`, добавляет `ffmpeg`/`ffprobe` в рантайм и запускает сервис через
+`uvicorn` (фабрика `create_app`).
 
 ```bash
-docker build -t stories-backend .
+docker build -t stories-backend:latest .
 ```
+
+Полная инструкция по запуску, переменным окружения, cookies и работе за nginx -
+в [`docs/DEPLOY.md`](docs/DEPLOY.md); ручные проверки перед приёмкой - в
+[`docs/MANUAL_CHECKS.md`](docs/MANUAL_CHECKS.md).
+
+### Обновление образа: пересоздавать контейнер, а не `restart`
+
+`docker restart` только перезапускает процесс в существующем контейнере и
+**не подхватывает новый образ** - контейнер остаётся привязан к тому образу, из
+которого был создан командой `docker run`. Чтобы применить пересобранный образ,
+контейнер нужно **пересоздать** (`rm` + `run`):
+
+```bash
+git pull origin main
+docker build -t stories-backend:latest .
+docker rm -f stories-backend
+docker run -d --name stories-backend \
+  -p 127.0.0.1:8000:8000 \
+  --env-file /path/to/instore.env \
+  -v stories-data:/data \
+  stories-backend:latest
+```
+
+Важно: при пересоздании контейнер выпадает из общей docker-сети с nginx - его
+нужно подключить заново, иначе проксирование по имени контейнера вернёт 502:
+
+```bash
+docker network connect <сеть_nginx> stories-backend
+```
+
+Проще держать сервис в том же `docker-compose.yml`, что и nginx: тогда
+`docker compose up -d --build stories-backend` сам пересоберёт и пересоздаст
+контейнер в общей сети - без ручного `docker network connect`.
 
 ## Статус
 
