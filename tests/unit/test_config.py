@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+from pydantic import ValidationError
+
 from stories_backend.interface.config import Settings
 
 
@@ -54,3 +57,20 @@ def test_root_path_normalized() -> None:
     ]:
         settings = Settings(api_keys="phone:secret", root_path=raw)
         assert settings.root_path == expected, raw
+
+
+def test_transcode_preset_default() -> None:
+    settings = Settings(api_keys="phone:secret")
+
+    assert settings.transcode_preset == "veryfast"
+
+
+def test_transcode_preset_normalized() -> None:
+    settings = Settings(api_keys="phone:secret", transcode_preset="  FAST  ")
+
+    assert settings.transcode_preset == "fast"
+
+
+def test_transcode_preset_rejects_unknown() -> None:
+    with pytest.raises(ValidationError):
+        Settings(api_keys="phone:secret", transcode_preset="turbo")

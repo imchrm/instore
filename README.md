@@ -109,9 +109,10 @@ docker run -d --name stories-backend \
 docker network connect <сеть_nginx> stories-backend
 ```
 
-Проще держать сервис в том же `docker-compose.yml`, что и nginx: тогда
-`docker compose up -d --build stories-backend` сам пересоберёт и пересоздаст
-контейнер в общей сети - без ручного `docker network connect`.
+Проще запускать сервис через `docker-compose.yml` (в корне репозитория): тогда
+`docker compose up -d --build` сам пересоберёт и пересоздаст контейнер в общей
+сети с nginx - без ручного `docker network connect`. Подробности - в
+[`docs/DEPLOY.md`](docs/DEPLOY.md), раздел «Запуск через docker compose».
 
 ## Статус
 

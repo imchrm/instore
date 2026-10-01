@@ -159,6 +159,23 @@ async def test_transcode_emits_fractional_and_final_progress() -> None:
     assert "-vf" not in runner.calls[0]
 
 
+async def test_transcode_uses_configured_preset() -> None:
+    runner = FakeProcessRunner(stdout_lines=["progress=end"])
+    transcoder = FfmpegTranscoder(runner, FakeProbe(10.0), preset="fast")
+
+    await transcoder.transcode(
+        "/source.mp4",
+        "/conv.mp4",
+        segment_time=45,
+        fps=30,
+        stories_fit=StoriesFit.NONE,
+        on_progress=ProgressCollector(),
+    )
+
+    argv = runner.calls[0]
+    assert argv[argv.index("libx264") + 1 : argv.index("libx264") + 3] == ["-preset", "fast"]
+
+
 @pytest.mark.parametrize(
     ("fit", "expected_flag"),
     [(StoriesFit.COVER, "-vf"), (StoriesFit.PAD, "-filter_complex")],

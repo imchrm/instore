@@ -1,0 +1,44 @@
+# Запуск stories-backend в общей docker-сети с контейнерным nginx.
+# Полная инструкция - в docs/DEPLOY.md, раздел "Запуск через docker compose".
+#
+# Кратко:
+#   docker compose up -d --build        # собрать образ и (пере)создать контейнер
+#   docker compose logs -f stories-backend
+#   docker compose down                 # остановить и удалить контейнер (том сохраняется)
+#
+# Переменные подстановки (можно задать в файле .env рядом с этим compose):
+#   NGINX_NETWORK - имя существующей сети, где работает nginx (по умолчанию 360tur_default);
+#   ENV_FILE      - путь к файлу с секретами сервиса (по умолчанию instore.env рядом).
+
+services:
+  stories-backend:
+    build: .
+    image: stories-backend:latest
+    container_name: stories-backend
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-instore.env}
+    ports:
+      # Привязка к loopback - для локальных smoke-проверок в обход nginx.
+      # Через nginx в общей сети не обязательна (проксирование идёт по имени контейнера).
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - stories-data:/data
+    networks:
+      - nginx
+
+networks:
+  # Существующая сеть контейнера nginx; сервис подключается в неё, чтобы nginx
+  # проксировал по имени (proxy_pass http://stories-backend:8000) без ручного
+  # docker network connect. Имя узнать:
+  #   docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' <nginx-контейнер>
+  nginx:
+    external: true
+    name: ${NGINX_NETWORK:-360tur_default}
+
+volumes:
+  # Переиспользуем уже существующий именованный том, чтобы не потерять данные
+  # (SQLite, cookies, куски). Том должен существовать заранее:
+  #   docker volume create stories-data
+  stories-data:
+    external: true

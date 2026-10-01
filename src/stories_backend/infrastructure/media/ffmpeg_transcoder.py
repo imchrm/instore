@@ -52,10 +52,12 @@ class FfmpegTranscoder:
         probe: MediaProbePort,
         *,
         ffmpeg_bin: str = "ffmpeg",
+        preset: str = "veryfast",
     ) -> None:
         self._runner = runner
         self._probe = probe
         self._ffmpeg_bin = ffmpeg_bin
+        self._preset = preset
 
     async def transcode(
         self,
@@ -103,10 +105,11 @@ class FfmpegTranscoder:
             src,
             "-c:v",
             "libx264",
-            # veryfast кратно ускоряет кодирование на скромных CPU (VPS) ценой
-            # небольшого роста битрейта; профиль и кейфреймы не затрагивает.
+            # Пресет задаётся настройкой TRANSCODE_PRESET: быстрые пресеты
+            # (например veryfast) кратно ускоряют кодирование на скромных CPU (VPS)
+            # ценой небольшого роста битрейта; профиль и кейфреймы не затрагивают.
             "-preset",
-            "veryfast",
+            self._preset,
             # 0 - авто по числу ядер (поведение libx264 по умолчанию, задаём явно).
             "-threads",
             "0",
