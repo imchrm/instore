@@ -110,19 +110,28 @@ docker ps --filter name=stories-backend   # STATUS -> healthy
 
 ```sh
 wait_ready() {
-  JOB="$1"
-  for i in $(seq 1 90); do
+  JOB="$1"; MAX="${2:-300}"          # бюджет ожидания: MAX * 2 c (по умолчанию ~10 мин)
+  for i in $(seq 1 "$MAX"); do
     S=$(curl -s -H "X-API-Key: $KEY" "$BASE/jobs/$JOB")
-    printf '%s' "$S" | grep -o '"status":"[^"]*"' | head -1
+    printf '%ss %s\n' "$((i*2))" "$(printf '%s' "$S" | grep -o '"status":"[^"]*"' | head -1)"
     case "$S" in
       *'"status":"ready"'*)  echo "$S"; return 0 ;;
       *'"status":"failed"'*) echo "$S"; return 1 ;;
     esac
     sleep 2
   done
-  echo "timeout"; return 2
+  echo "timeout: не дождались за $((MAX*2)) c - задача, вероятно, ещё идёт, перепроверьте вручную"
+  return 2
 }
+# при длинном видео/медленном CPU: wait_ready "$JOB" 600   # ждать до ~20 мин
 ```
+
+Важно: `timeout` из `wait_ready` - это предел **клиентского** ожидания, а не
+ошибка обработки. Серверного таймаута на транскодирование нет, процесс всегда
+доводится до конца; если хелпер сдался - увеличьте бюджет (`wait_ready "$JOB" 600`)
+или следите за прогрессом по SSE (`/jobs/$JOB/events`). Как посмотреть, что
+задача реально считается (а не стоит в очереди) - см. раздел «Очередь и
+наблюдение за задачами».
 
 #### A1. Короткий ролик (< 60 c) -> ожидаем один кусок
 
@@ -214,22 +223,120 @@ docker exec stories-backend ls -la /data/jobs/$JOB/
 Ожидаемо: только `conv_000.mp4` (и далее по индексам) + `manifest.json`. Файлов
 `source.*` и `conv.mp4` быть не должно (удаляются после `probe`).
 
-### 5. Instagram + cookies
+### 5. Сценарий B: Instagram с cookies (приватное/по логину)
+
+Cookies привязаны к `key_id`, поэтому весь сценарий выполняется **одним и тем
+же** `X-API-Key`. Эндпоинты cookies: `POST /admin/cookies` (тело = сырое
+содержимое файла, ответ `204`), `GET /admin/cookies/status`
+(`{present, uploaded_at, likely_expired}`), `DELETE /admin/cookies` (`204`).
+Поведение `use_cookies:true`: если файла cookies для ключа нет - задача падает в
+`AUTH_REQUIRED` ещё до вызова yt-dlp; если есть - путь передаётся в yt-dlp
+(`--cookies`) и на `probe`, и на `download`.
+
+#### B1. Подготовить `cookies.txt`
+
+Экспорт cookies Instagram в **формате Netscape** из браузера, где выполнен вход
+(расширение типа «Get cookies.txt LOCALLY» либо `yt-dlp --cookies-from-browser`).
+В файле должны быть сессионные cookies `sessionid`, `ds_user_id`, `csrftoken`.
+Это учётные данные: держать `chmod 600`, в репозиторий не коммитить, после
+проверки удалить (шаг B7).
 
 ```sh
-# загрузить cookies.txt (тело запроса = содержимое файла)
-curl -s -X POST "$BASE/admin/cookies" \
-  -H "X-API-Key: $KEY" --data-binary @cookies.txt
-
-curl -s -H "X-API-Key: $KEY" "$BASE/admin/cookies/status"
-
-# задача с использованием cookies
-curl -s -X POST "$BASE/jobs" \
-  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
-  -d '{"url":"https://www.instagram.com/reel/XXXX/","use_cookies":true}'
+head -1 cookies.txt     # "# Netscape HTTP Cookie File"
+chmod 600 cookies.txt
 ```
 
-### 6. Обновление yt-dlp (при ошибках скачивания)
+#### B2. Загрузить cookies и проверить статус
+
+```sh
+curl -s -o /dev/null -w "%{http_code}\n" -X POST "$BASE/admin/cookies" \
+  -H "X-API-Key: $KEY" --data-binary @cookies.txt        # ожидаем 204
+curl -s -H "X-API-Key: $KEY" "$BASE/admin/cookies/status"
+```
+
+Критерий B2: `{"present":true,"uploaded_at":<число>,"likely_expired":false}`.
+
+#### B3. Задача с cookies на закрытом/требующем логина reel -> до `ready`
+
+URL должен быть недоступен без логина (reel закрытого аккаунта, на который вы
+подписаны, либо с возрастным ограничением) - иначе cookies не проверяются по
+существу.
+
+```sh
+RESP=$(curl -s -X POST "$BASE/jobs" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"url":"https://www.instagram.com/reel/ПРИВАТНЫЙ/","use_cookies":true,"max_height":480}')
+echo "$RESP"
+JOB=$(printf '%s' "$RESP" | grep -o '"job_id":"[^"]*"' | cut -d'"' -f4); echo "JOB=$JOB"
+wait_ready "$JOB"
+```
+
+Критерий B3: `status=ready` (не `failed`/`AUTH_REQUIRED`). Сводку по кускам и
+проверку очистки смотреть как в разделах «Сводка по задаче» и п.4 (у Instagram
+`duration` в метаданных бывает `null`; длина сегмента считается по факту через
+ffprobe - PR #17).
+
+#### B4. Негативная проверка: `AUTH_REQUIRED` без cookies
+
+Подтверждает срабатывание защиты (app-level, до вызова yt-dlp). Делать
+**последним** - шаг удаляет cookies:
+
+```sh
+curl -s -X DELETE "$BASE/admin/cookies" -H "X-API-Key: $KEY" -o /dev/null -w "%{http_code}\n"  # 204
+curl -s -H "X-API-Key: $KEY" "$BASE/admin/cookies/status"      # present:false
+
+RESP=$(curl -s -X POST "$BASE/jobs" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"url":"https://www.instagram.com/reel/ПРИВАТНЫЙ/","use_cookies":true}')
+JOB2=$(printf '%s' "$RESP" | grep -o '"job_id":"[^"]*"' | cut -d'"' -f4)
+wait_ready "$JOB2"
+curl -s -H "X-API-Key: $KEY" "$BASE/jobs/$JOB2" | grep -o '"code":"[^"]*"'
+```
+
+Критерий B4: `status=failed`, `error.code = AUTH_REQUIRED`.
+
+#### B5. Удалить cookies с сервера
+
+Если загружали только для проверки (в B4 уже удалено; повторно - идемпотентно):
+
+```sh
+curl -s -X DELETE "$BASE/admin/cookies" -H "X-API-Key: $KEY" -o /dev/null -w "%{http_code}\n"  # 204
+```
+
+### 6. Очередь и наблюдение за задачами
+
+Воркер обрабатывает задачи **по одной** (`MAX_CONCURRENT_JOBS=1`) в порядке
+постановки (FIFO): пока активная задача не дойдёт до `ready`/`failed`,
+следующая стоит в `queued`. Эндпоинта «список задач» в API нет (доступ только
+по известному `job_id`), но состояние видно на сервере.
+
+```sh
+# идёт ли прямо сейчас ffmpeg/yt-dlp (ps хоста, работает даже без ps в образе)
+docker top stories-backend
+
+# очередь в порядке создания (кто перед кем); -readonly не мешает приложению
+docker exec stories-backend sqlite3 -readonly -header -column /data/jobs.sqlite3 \
+  "SELECT substr(job_id,1,8) AS job, status, round(progress,2) AS progress,
+          datetime(created_at,'unixepoch') AS created
+   FROM jobs WHERE status NOT IN ('ready','failed','expired')
+   ORDER BY created_at ASC;"
+
+docker logs --since 15m stories-backend   # переходы статусов (structlog)
+```
+
+Нюансы:
+
+- **Долгий транскод - не зависание.** Серверного таймаута нет, ffmpeg доводит
+  работу до конца; `wait_ready` может сдаться раньше (увеличьте бюджет).
+  Ускорение кодирования - `-preset veryfast` (PR #22); на проде применяется
+  после пересборки образа и **пересоздания** контейнера.
+- **Очередь воркера - in-memory** и не переживает пересоздание контейнера.
+  Задачи, прерванные рестартом, помечаются `failed (INTERNAL)` при старте; если
+  задача осталась в `queued`, но `docker top` не показывает ffmpeg - создайте её
+  заново (старую можно удалить через `DELETE /jobs/{id}`).
+- Лишние тестовые задачи в очереди можно убрать: `DELETE /jobs/{id}` (`204`).
+
+### 7. Обновление yt-dlp (при ошибках скачивания)
 
 Если YouTube/Instagram сломали выгрузку - пересобрать образ (свежий `yt-dlp` с
 PyPI) либо включить обновление на старте: `YT_DLP_AUTO_UPDATE=true` (в

@@ -78,7 +78,7 @@
 - [x] Инструкция по деплою `docs/DEPLOY.md` (сборка, запуск, ENV, cookies, бэкап)
 - [~] docker-compose (сервис + том `DATA_DIR`) — вне области (одиночный образ)
 - [x] Конфиг nginx: reverse-proxy по подпути `/instore` — задокументирован (`DEPLOY.md`, `MANUAL_CHECKS.md`) и развёрнут; X-Accel-Redirect — опционально (документирован, `USE_XACCEL=false`, не активирован)
-- [~] Прогон end-to-end на реальном URL — YouTube happy-path подтверждён (после PR #17, равномерная нарезка до `ready`); Instagram (public reel) подтверждён (до PR #17/#18 — нужен повторный прогон); Instagram с cookies — предстоит
+- [x] Прогон end-to-end на реальном URL — подтверждён на сервере: YouTube happy-path (после PR #17, равномерная нарезка до `ready`), Instagram public reel, Instagram с cookies (приватный reel до `ready`; негативная проверка - `AUTH_REQUIRED` без cookies). Сценарий проверки - в `MANUAL_CHECKS.md` (сценарии A и B)
 
 ## Реализовано после деплоя
 
@@ -88,6 +88,7 @@
 - [x] Умная нарезка: видео ≤ лимита не режется; длинное - на равные части без крошечных «хвостов»; длина сегмента считается по фактической длительности исходника (PR #17)
 - [x] Устойчивый селектор формата yt-dlp: фолбэк-ветки вместо `VIDEO_UNAVAILABLE` при отсутствии формата под запрошенный `max_height` (PR #18)
 - [x] Шаблон `.env.example` и ужесточение `.dockerignore` (`*.env`) (PR #13/#15)
+- [x] Ускорение транскодирования: `-preset veryfast` и явный `-threads 0` для `ffmpeg`/`libx264` (PR #22)
 
 ## Открытые вопросы (вести по мере появления)
 

@@ -128,6 +128,17 @@
   Instagram public подтверждён, Instagram с cookies - предстоит); добавлен раздел
   «Реализовано после деплоя» (PR #12/#13/#15/#17/#18) и заметка про Instagram
   `duration:null` в открытых вопросах.
+- `MANUAL_CHECKS.md`: §5 развёрнут в полноценный сценарий B (Instagram с cookies)
+  с шагами B1-B5 (подготовка `cookies.txt`, upload/status, задача `use_cookies`
+  до `ready`, негативная проверка `AUTH_REQUIRED` без cookies, удаление cookies);
+  добавлен раздел «Очередь и наблюдение за задачами» (один воркер и FIFO,
+  отсутствие эндпоинта списка, `docker top`/SQLite/логи, in-memory очередь не
+  переживает пересоздание контейнера); хелпер `wait_ready` получил параметр
+  бюджета и пояснение, что его `timeout` - клиентский, а не ошибка обработки.
+- `TODO.md`: end-to-end (Фаза 7) закрыт как подтверждённый на сервере - YouTube
+  happy-path, Instagram public и Instagram с cookies (приватный reel до `ready`,
+  негатив `AUTH_REQUIRED`); в «Реализовано после деплоя» добавлено ускорение
+  транскодирования (PR #22).
 
 ### Fixed
 
