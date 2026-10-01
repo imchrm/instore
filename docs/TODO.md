@@ -94,6 +94,19 @@
 - [x] Запуск через `docker-compose.yml` в общей сети с nginx (PR #24)
 - [x] Ротация логов контейнера: блок `logging` (json-file, `max-size`/`max-file`) в `docker-compose.yml`
 
+## Фаза 8. Фронтенд (клиент)
+
+Решение по стеку и структуре - в [`docs/adr/0001-frontend-architecture.md`](adr/0001-frontend-architecture.md):
+Telegram Mini App на TypeScript, монорепо (каталог `frontend/`), публикация
+кусков через `shareToStory`.
+
+- [ ] Backend: эндпоинт подписанного URL для кусков (HMAC + TTL, секрет из ENV) - публичная отдача без `X-API-Key` для `shareToStory`
+- [ ] Backend: гарантия размера куска ≤ 30 МБ под лимит Stories (size-guard и/или дефолт `max_height` для вертикали)
+- [ ] Генерация типизированного TS-клиента из OpenAPI
+- [ ] Скелет `frontend/` (Vite + TS, Telegram WebApp SDK) и CI-джоба
+- [ ] Сценарий: создать задачу -> прогресс (SSE) -> по готовности `shareToStory` на каждый кусок
+- [ ] Деплой статики клиента за nginx (отдельная `location`)
+
 ## Открытые вопросы (вести по мере появления)
 
 - [ ] Значение `MAX_VIDEO_DURATION` подтвердить на практике (сейчас 1800 сек, но при лимите 50 МБ фактически ограничивает размер)
