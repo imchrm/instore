@@ -72,9 +72,56 @@ docker network connect <сеть_nginx> stories-backend
 ```
 
 То же касается обновления `yt-dlp` пересборкой образа (см. ниже): после
-`docker build` контейнер надо пересоздать. Проще держать сервис в общем с nginx
-`docker-compose.yml`: `docker compose up -d --build stories-backend` пересоберёт
-и пересоздаст контейнер в той же сети без ручного `docker network connect`.
+`docker build` контейнер надо пересоздать. Проще запускать сервис через
+`docker compose` (см. следующий раздел): `docker compose up -d --build`
+пересоберёт и пересоздаст контейнер в той же сети без ручного
+`docker network connect`.
+
+## Запуск через docker compose (в общей сети с nginx)
+
+В корне репозитория есть `docker-compose.yml`, который избавляет от ручного
+`docker rm`/`run`/`network connect`: он пересоздаёт контейнер в общей сети с
+nginx, переиспользует существующий том и читает секреты из `--env-file`.
+
+Предпосылки (один раз):
+
+- Том `stories-data` должен существовать (compose подключает его как external,
+  чтобы не потерять данные при пересоздании):
+
+  ```sh
+  docker volume create stories-data   # если тома ещё нет
+  ```
+
+- Рядом с `docker-compose.yml` положить файл секретов `instore.env`
+  (копия `.env.example`, `chmod 600`, с реальным `API_KEYS` и `ROOT_PATH=/instore`).
+- Узнать имя сети, в которой работает nginx, и задать его через `NGINX_NETWORK`
+  (по умолчанию `360tur_default`):
+
+  ```sh
+  docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' <nginx-контейнер>
+  ```
+
+  Удобно положить подстановки в файл `.env` рядом с compose (он игнорируется git):
+
+  ```sh
+  NGINX_NETWORK=360tur_default
+  ENV_FILE=instore.env
+  ```
+
+Запуск и обновление:
+
+```sh
+git pull origin main
+docker compose up -d --build        # собрать образ и (пере)создать контейнер
+docker compose ps
+docker compose logs -f stories-backend
+```
+
+Контейнер называется `stories-backend` и подключён к сети nginx, поэтому
+проксирование по имени работает без изменений: `proxy_pass http://stories-backend:8000/`.
+Остановка - `docker compose down` (том `stories-data` сохраняется, так как
+external). Первый `up` после прежнего `docker run` пересоздаёт существующий
+контейнер - это ожидаемо.
 
 ## Переменные окружения
 
@@ -94,6 +141,7 @@ docker network connect <сеть_nginx> stories-backend
 | `SEGMENT_TIME_DEFAULT`   | `45`           | длина куска (сек)                                       |
 | `KEYFRAME_LIMIT_SEC`     | `60`           | предел интервала кейфреймов                             |
 | `TARGET_FPS`             | `30`           | целевой FPS при транскодировании                        |
+| `TRANSCODE_PRESET`       | `veryfast`     | пресет `libx264` (скорость/битрейт): `ultrafast`..`placebo` |
 | `CLEANUP_INTERVAL_SEC`   | `60`           | период фоновой очистки по TTL                           |
 | `USE_XACCEL`             | `false`        | отдача кусков через `X-Accel-Redirect` (за nginx)       |
 | `XACCEL_INTERNAL_PREFIX` | `/_protected`  | internal-префикс локации nginx для `X-Accel-Redirect`   |

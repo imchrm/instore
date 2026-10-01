@@ -70,13 +70,14 @@
 
 ## Фаза 7. Деплой
 
-Область по решению: только Docker-образ (без docker-compose и nginx).
+Исходно область ограничивалась Docker-образом; по ходу эксплуатации добавлены
+`docker-compose.yml` и конфигурация nginx (reverse-proxy по подпути `/instore`).
 
 - [x] Финализация Dockerfile (том `DATA_DIR`, непривилегированный пользователь, HEALTHCHECK, entrypoint)
 - [x] `.dockerignore` (минимальный контекст сборки: `pyproject.toml`, `src`, entrypoint)
 - [x] Механизм обновления `yt-dlp` (пересборка образа или шаг при старте по `YT_DLP_AUTO_UPDATE`)
 - [x] Инструкция по деплою `docs/DEPLOY.md` (сборка, запуск, ENV, cookies, бэкап)
-- [~] docker-compose (сервис + том `DATA_DIR`) — вне области (одиночный образ)
+- [x] docker-compose (`docker-compose.yml` в корне): сборка, том `stories-data` (external), `--env-file`, подключение к сети nginx — `docker compose up -d --build` без ручного `docker network connect`
 - [x] Конфиг nginx: reverse-proxy по подпути `/instore` — задокументирован (`DEPLOY.md`, `MANUAL_CHECKS.md`) и развёрнут; X-Accel-Redirect — опционально (документирован, `USE_XACCEL=false`, не активирован)
 - [x] Прогон end-to-end на реальном URL — подтверждён на сервере: YouTube happy-path (после PR #17, равномерная нарезка до `ready`), Instagram public reel, Instagram с cookies (приватный reel до `ready`; негативная проверка - `AUTH_REQUIRED` без cookies). Сценарий проверки - в `MANUAL_CHECKS.md` (сценарии A и B)
 

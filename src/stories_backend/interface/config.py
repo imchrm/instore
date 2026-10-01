@@ -14,6 +14,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from stories_backend.application.config import ProcessingLimits
 
+# Пресеты libx264 от самого быстрого к самому медленному (качество/битрейт растут).
+_X264_PRESETS: frozenset[str] = frozenset(
+    {
+        "ultrafast",
+        "superfast",
+        "veryfast",
+        "faster",
+        "fast",
+        "medium",
+        "slow",
+        "slower",
+        "veryslow",
+        "placebo",
+    }
+)
+
 
 class Settings(BaseSettings):
     """Настройки сервиса. Имена полей сопоставляются с ENV без учёта регистра."""
@@ -39,6 +55,10 @@ class Settings(BaseSettings):
     segment_time_default: int = 45
     keyframe_limit_sec: int = 60
     target_fps: int = 30
+    transcode_preset: str = Field(
+        default="veryfast",
+        description="пресет libx264 (компромисс скорость/битрейт), напр. veryfast/fast/medium",
+    )
     cleanup_interval_sec: int = 60
     use_xaccel: bool = False
     xaccel_internal_prefix: str = "/_protected"
@@ -50,6 +70,17 @@ class Settings(BaseSettings):
         """Нормализовать префикс: без концевого '/', с ведущим '/' (или пусто для корня)."""
         trimmed = value.strip().strip("/")
         return f"/{trimmed}" if trimmed else ""
+
+    @field_validator("transcode_preset")
+    @classmethod
+    def _validate_preset(cls, value: str) -> str:
+        """Разрешить только валидные пресеты libx264 (иначе ffmpeg упадёт на каждой задаче)."""
+        normalized = value.strip().lower()
+        if normalized not in _X264_PRESETS:
+            allowed = ", ".join(_X264_PRESETS)
+            msg = f"недопустимый TRANSCODE_PRESET '{value}'; допустимы: {allowed}"
+            raise ValueError(msg)
+        return normalized
 
     @property
     def resolved_cookies_dir(self) -> str:

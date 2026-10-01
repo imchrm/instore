@@ -356,6 +356,7 @@ DATA_DIR/
 | `SEGMENT_TIME_DEFAULT` | длина куска, сек | `45` |
 | `KEYFRAME_LIMIT_SEC` | предел куска (флаг over_limit) | `60` |
 | `TARGET_FPS` | fps при перекодировании | `30` |
+| `TRANSCODE_PRESET` | пресет libx264 (скорость/битрейт) | `veryfast` |
 | `CLEANUP_INTERVAL_SEC` | период планировщика очистки | `60` |
 | `USE_XACCEL` | отдача файлов через nginx | `false` |
 | `XACCEL_INTERNAL_PREFIX` | internal-локация nginx | `/_protected` |

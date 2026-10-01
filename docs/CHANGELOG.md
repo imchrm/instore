@@ -8,6 +8,17 @@
 
 ### Added
 
+- `docker-compose.yml` в корне репозитория: сборка образа, подключение к общей
+  сети nginx (external, по умолчанию `360tur_default`, переопределяется через
+  `NGINX_NETWORK`), переиспользование существующего тома `stories-data`
+  (external), секреты через `--env-file` (`ENV_FILE`, по умолчанию `instore.env`).
+  `docker compose up -d --build` пересобирает и пересоздаёт контейнер в той же
+  сети без ручного `docker network connect`. Раздел «Запуск через docker compose»
+  в `DEPLOY.md`.
+- Настройка `TRANSCODE_PRESET` (ENV): пресет `libx264` (`ultrafast`..`placebo`,
+  по умолчанию `veryfast`) с валидацией значения в `Settings`; прокидывается в
+  `FfmpegTranscoder`. Позволяет менять компромисс скорость/битрейт без правок
+  кода. Отражено в `.env.example`, `DEPLOY.md` и `ARCHITECTURE.md`.
 - Проектная документация: `CONTEXT.md`, `ARCHITECTURE.md`, `TODO.md`, `CHANGELOG.md`.
 - Согласована архитектура серверной части (Clean Architecture / DDD): слои domain / application / infrastructure / interface.
 - Определён контракт REST/SSE API: создание задачи, статус/манифест, поток прогресса, отдача кусков, админ-эндпоинты cookies, `/config`, `/health`.

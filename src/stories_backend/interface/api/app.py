@@ -52,7 +52,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     runner = AsyncioProcessRunner()
     probe = FfprobeMediaProbe(runner)
     downloader = YtDlpDownloader(runner)
-    transcoder = FfmpegTranscoder(runner, probe)
+    transcoder = FfmpegTranscoder(runner, probe, preset=settings.transcode_preset)
     segmenter = FfmpegSegmenter(runner)
 
     processing = JobProcessingService(
