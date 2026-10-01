@@ -153,6 +153,9 @@ async def test_transcode_emits_fractional_and_final_progress() -> None:
     assert progress.events[0] == (0.5, None)
     assert progress.events[-1] == (1.0, None)
     assert "libx264" in runner.calls[0]
+    # Пресет ускорения кодирования должен присутствовать сразу после кодека.
+    argv = runner.calls[0]
+    assert argv[argv.index("libx264") + 1 : argv.index("libx264") + 3] == ["-preset", "veryfast"]
     assert "-vf" not in runner.calls[0]
 
 
