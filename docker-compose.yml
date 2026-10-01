@@ -26,6 +26,13 @@ services:
       - stories-data:/data
     networks:
       - nginx
+    logging:
+      # Ограничение логов контейнера (драйвер json-file без лимита рос бы
+      # бесконечно и со временем забил бы диск). Потолок ~ max-size * max-file.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   # Существующая сеть контейнера nginx; сервис подключается в неё, чтобы nginx

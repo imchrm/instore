@@ -15,6 +15,10 @@
   `docker compose up -d --build` пересобирает и пересоздаёт контейнер в той же
   сети без ручного `docker network connect`. Раздел «Запуск через docker compose»
   в `DEPLOY.md`.
+- Ротация логов контейнера: блок `logging` в `docker-compose.yml` (драйвер
+  `json-file`, `max-size: 10m`, `max-file: 3`, потолок ~30 МБ) - у драйвера по
+  умолчанию лимита нет, лог-файл рос бы бесконечно. Описано в `DEPLOY.md`
+  (подраздел «Ротация логов»).
 - Настройка `TRANSCODE_PRESET` (ENV): пресет `libx264` (`ultrafast`..`placebo`,
   по умолчанию `veryfast`) с валидацией значения в `Settings`; прокидывается в
   `FfmpegTranscoder`. Позволяет менять компромисс скорость/битрейт без правок
