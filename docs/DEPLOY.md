@@ -92,8 +92,17 @@ nginx, переиспользует существующий том и чита�
   docker volume create stories-data   # если тома ещё нет
   ```
 
-- Рядом с `docker-compose.yml` положить файл секретов `instore.env`
-  (копия `.env.example`, `chmod 600`, с реальным `API_KEYS` и `ROOT_PATH=/instore`).
+- Файл секретов `instore.env` должен лежать в каталоге с `docker-compose.yml`
+  (compose читает его по относительному пути). Если репозиторий развёрнут, а
+  `instore.env` уже в его корне - копировать никуда не нужно, достаточно
+  проверить права и содержимое:
+
+  ```sh
+  chmod 600 instore.env
+  grep -E '^(API_KEYS|ROOT_PATH)=' instore.env   # ROOT_PATH=/instore должен быть
+  ```
+
+  Файл подпадает под `*.env` в `.gitignore`, поэтому `git pull` его не трогает.
 - Узнать имя сети, в которой работает nginx, и задать его через `NGINX_NETWORK`
   (по умолчанию `360tur_default`):
 
@@ -101,12 +110,15 @@ nginx, переиспользует существующий том и чита�
   docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' <nginx-контейнер>
   ```
 
-  Удобно положить подстановки в файл `.env` рядом с compose (он игнорируется git):
+  Удобно положить подстановку в файл `.env` рядом с compose (он игнорируется git):
 
   ```sh
   NGINX_NETWORK=360tur_default
-  ENV_FILE=instore.env
   ```
+
+  `ENV_FILE` указывать не нужно, если файл называется `instore.env` и лежит рядом
+  (это значение по умолчанию); задайте его, только чтобы взять файл с другим
+  именем или по другому пути.
 
 Запуск и обновление:
 
