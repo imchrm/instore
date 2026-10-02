@@ -20,8 +20,12 @@ from stories_backend.interface.api.schemas import (
 ChunkUrlBuilder = Callable[[str, int], str]
 
 
-def job_to_response(job: Job, chunk_url: ChunkUrlBuilder) -> JobResponse:
-    """Собрать ``JobResponse`` из доменной задачи."""
+def job_to_response(job: Job, chunk_url: ChunkUrlBuilder, story_max_bytes: int) -> JobResponse:
+    """Собрать ``JobResponse`` из доменной задачи.
+
+    ``story_max_bytes`` - лимит размера куска для Telegram Stories; кусок крупнее
+    помечается ``over_story_limit`` (информативно, обработку не меняет).
+    """
     error = None
     if job.error_code is not None:
         error = ErrorInfo(code=job.error_code, message=job.error_message or job.error_code.value)
@@ -40,6 +44,7 @@ def job_to_response(job: Job, chunk_url: ChunkUrlBuilder) -> JobResponse:
                 size_bytes=chunk.size_bytes,
                 sha256=chunk.sha256,
                 over_limit=chunk.over_limit,
+                over_story_limit=chunk.size_bytes > story_max_bytes,
             )
             for chunk in job.chunks
         ],
@@ -77,4 +82,5 @@ def limits_to_service_config(limits: ProcessingLimits) -> ServiceConfigDto:
         keyframe_limit_sec=limits.keyframe_limit_sec,
         stories_fit_options=list(StoriesFit),
         job_ttl_seconds=limits.job_ttl_seconds,
+        story_max_filesize_mb=limits.story_max_filesize_mb,
     )

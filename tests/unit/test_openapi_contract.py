@@ -23,6 +23,8 @@ _EXPECTED_PATHS: dict[str, set[str]] = {
     "/api/v1/jobs/{job_id}": {"get", "delete"},
     "/api/v1/jobs/{job_id}/events": {"get"},
     "/api/v1/jobs/{job_id}/chunks/{index}": {"get"},
+    "/api/v1/jobs/{job_id}/chunks/{index}/share-url": {"get"},
+    "/api/v1/public/chunks/{job_id}/{index}": {"get"},
     "/api/v1/admin/cookies": {"post", "delete"},
     "/api/v1/admin/cookies/status": {"get"},
 }
@@ -35,6 +37,7 @@ _EXPECTED_COMPONENTS: set[str] = {
     "ErrorInfo",
     "CookiesStatusDto",
     "ServiceConfigDto",
+    "ShareUrlDto",
     "JobStatus",
     "StoriesFit",
     "ErrorCode",

@@ -22,3 +22,6 @@ class ProcessingLimits:
     target_fps: int = 30
     job_ttl_seconds: int = 1200
     cleanup_interval_sec: int = 60
+    # Лимит размера одного куска для публикации в Telegram Stories (информативный
+    # флаг over_story_limit в ответе; обработку не блокирует).
+    story_max_filesize_mb: int = 30

@@ -8,6 +8,18 @@
 
 ### Added
 
+- Подписанные публичные URL кусков для Telegram `shareToStory`: эндпоинт
+  `GET /jobs/{id}/chunks/{index}/share-url` (владельцу по ключу) выдаёт
+  `{ url, expires_at }` с HMAC-подписью и сроком, а публичный
+  `GET /public/chunks/{id}/{index}?exp=&sig=` отдаёт файл **без `X-API-Key`**
+  (авторизация - подпись + срок). Настройки `SIGNING_SECRET` (пусто = выключено),
+  `SIGNED_URL_TTL_SEC` (300 c), `PUBLIC_BASE_URL`. Подписант -
+  `infrastructure/security/url_signer.py` (HMAC-SHA256, сравнение за постоянное
+  время). Отдача файла вынесена в общий помощник (ключевой и публичный маршруты).
+- Size-guard для Stories: настройка `STORY_MAX_FILESIZE_MB` (30) и флаг
+  `over_story_limit` в `ChunkInfo` (размер куска больше лимита истории Telegram);
+  лимит опубликован в `/config` (`ServiceConfigDto.story_max_filesize_mb`).
+  Обработку не блокирует - только информирует клиента.
 - Скелет фронтенда в `frontend/` (Svelte 5 + Vite + TypeScript, Telegram Mini
   App): форма URL -> создание задачи -> прогресс по SSE -> список готовых кусков
   со скачиванием. Клиент API с `X-API-Key`, SSE через `fetch` (не EventSource),

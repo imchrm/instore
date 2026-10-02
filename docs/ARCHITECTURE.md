@@ -306,7 +306,9 @@ class ServiceConfig(BaseModel):
 | POST | `/api/v1/jobs` | Создать задачу | 202 `JobResponse` |
 | GET | `/api/v1/jobs/{id}` | Статус/манифест | 200 `JobResponse` / 404 |
 | GET | `/api/v1/jobs/{id}/events` | SSE прогресс | 200 `text/event-stream` |
-| GET | `/api/v1/jobs/{id}/chunks/{index}` | Файл куска | 200 `video/mp4` / 404 |
+| GET | `/api/v1/jobs/{id}/chunks/{index}` | Файл куска (по ключу) | 200 `video/mp4` / 404 |
+| GET | `/api/v1/jobs/{id}/chunks/{index}/share-url` | Подписанная публичная ссылка на кусок | 200 `ShareUrlDto` / 404 / 503 |
+| GET | `/api/v1/public/chunks/{id}/{index}` | Файл куска по подписи (без ключа) | 200 `video/mp4` / 403 / 404 |
 | DELETE | `/api/v1/jobs/{id}` | Удалить задачу | 204 / 404 |
 | POST | `/api/v1/admin/cookies` | Загрузить cookies.txt | 204 |
 | GET | `/api/v1/admin/cookies/status` | Состояние cookies | 200 `CookiesStatus` |
@@ -319,6 +321,7 @@ class ServiceConfig(BaseModel):
 - Все `/jobs/*` работают только с задачами, у которых `job.key_id == текущий key_id` (изоляция по ключу). Чужая задача → 404 (не 403, чтобы не раскрывать существование).
 - `/admin/cookies*` работают только с файлом текущего `key_id`.
 - `/jobs/{id}/chunks/{index}` в продакшене возвращает пустой ответ с заголовком `X-Accel-Redirect` на internal-локацию nginx; в dev — `FileResponse`. Управляется `USE_XACCEL`.
+- `share-url` выдаётся только владельцу задачи (по ключу); сам публичный маршрут `/public/chunks/{id}/{index}` ключа не требует — авторизацией служит HMAC-подпись (`SIGNING_SECRET`) и срок `exp`. Неверная подпись/истёкший срок → 403; функция выключена (нет секрета) → 503 на `share-url` и 404 на публичном маршруте. Отдаёт файл тем же путём (`X-Accel-Redirect`/`FileResponse`).
 
 Коды ошибок HTTP: 401 (нет/неверный `X-API-Key`), 404 (нет задачи в пределах ключа), 413 или доменный `TOO_LARGE` в теле `JobResponse` при превышении размера, 422 (валидация запроса), 503 (`/health` при недоступности `yt-dlp`/`ffmpeg`/`ffprobe`).
 
@@ -357,6 +360,10 @@ DATA_DIR/
 | `KEYFRAME_LIMIT_SEC` | предел куска (флаг over_limit) | `60` |
 | `TARGET_FPS` | fps при перекодировании | `30` |
 | `TRANSCODE_PRESET` | пресет libx264 (скорость/битрейт) | `veryfast` |
+| `STORY_MAX_FILESIZE_MB` | лимит размера куска для Stories (флаг `over_story_limit`) | `30` |
+| `SIGNING_SECRET` | секрет HMAC подписанных публичных URL кусков; пусто = выкл. | (выкл.) |
+| `SIGNED_URL_TTL_SEC` | срок жизни подписанной ссылки | `300` |
+| `PUBLIC_BASE_URL` | база подписанных URL (напр. `https://host/instore`) | (из запроса) |
 | `CLEANUP_INTERVAL_SEC` | период планировщика очистки | `60` |
 | `USE_XACCEL` | отдача файлов через nginx | `false` |
 | `XACCEL_INTERNAL_PREFIX` | internal-локация nginx | `/_protected` |

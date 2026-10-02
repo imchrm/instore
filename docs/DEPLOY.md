@@ -174,6 +174,10 @@ external). Первый `up` после прежнего `docker run` перес
 | `KEYFRAME_LIMIT_SEC`     | `60`           | предел интервала кейфреймов                             |
 | `TARGET_FPS`             | `30`           | целевой FPS при транскодировании                        |
 | `TRANSCODE_PRESET`       | `veryfast`     | пресет `libx264` (скорость/битрейт): `ultrafast`..`placebo` |
+| `STORY_MAX_FILESIZE_MB`  | `30`           | лимит размера куска для Stories (флаг `over_story_limit`) |
+| `SIGNING_SECRET`         | (выкл.)        | секрет HMAC для подписанных публичных URL кусков; пусто = выключено |
+| `SIGNED_URL_TTL_SEC`     | `300`          | срок жизни подписанной ссылки на кусок                   |
+| `PUBLIC_BASE_URL`        | (из запроса)   | база подписанных URL, напр. `https://host/instore`      |
 | `CLEANUP_INTERVAL_SEC`   | `60`           | период фоновой очистки по TTL                           |
 | `USE_XACCEL`             | `false`        | отдача кусков через `X-Accel-Redirect` (за nginx)       |
 | `XACCEL_INTERNAL_PREFIX` | `/_protected`  | internal-префикс локации nginx для `X-Accel-Redirect`   |
@@ -338,6 +342,31 @@ smoke-проверок с хоста и nginx-контейнеру не меша
 через админ-эндпоинт и хранятся по `key_id` в `${COOKIES_DIR}` (по умолчанию
 `${DATA_DIR}/cookies`, т.е. внутри тома). Использование включается флагом
 `use_cookies` при создании задачи. Общий fallback-файл не используется.
+
+## Публичные подписанные URL кусков (Telegram shareToStory)
+
+Для публикации в Stories клиент (Mini App) вызывает `shareToStory` с URL куска, а
+Telegram тянет файл **сам, без `X-API-Key`**. Поэтому отдача кусков доступна двумя
+путями: по ключу (`GET /jobs/{id}/chunks/{i}`, владельцу задачи) и по публичной
+подписанной ссылке.
+
+Как это работает:
+
+1. Владелец (по `X-API-Key`) запрашивает `GET /jobs/{id}/chunks/{i}/share-url` -
+   возвращается `{ url, expires_at }` с подписью HMAC и сроком действия.
+2. Этот URL (`GET /api/v1/public/chunks/{id}/{i}?exp=...&sig=...`) отдаёт файл
+   **без ключа**: авторизация - валидная подпись и неистёкший срок.
+
+Включается заданием `SIGNING_SECRET` (без него `share-url` отвечает `503`, а
+публичный маршрут - `404`). Рекомендуется задать `PUBLIC_BASE_URL`
+(`https://<домен>/instore`), чтобы ссылка была абсолютной `https` за TLS-прокси;
+иначе URL выводится из запроса. Срок - `SIGNED_URL_TTL_SEC` (по умолчанию 300 c);
+достаточно короткий, так как Telegram забирает файл сразу. Подпись привязана к
+`job_id` + индексу + сроку и не переносится на другой кусок.
+
+Куски крупнее `STORY_MAX_FILESIZE_MB` (30 МБ) помечаются в ответе флагом
+`over_story_limit` - Telegram их не примет; уменьшите `max_height` при создании
+задачи.
 
 ## Данные и бэкап
 
