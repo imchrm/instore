@@ -103,7 +103,7 @@ Telegram Mini App на TypeScript, монорепо (каталог `frontend/`)
 - [ ] Backend: эндпоинт подписанного URL для кусков (HMAC + TTL, секрет из ENV) - публичная отдача без `X-API-Key` для `shareToStory`
 - [ ] Backend: гарантия размера куска ≤ 30 МБ под лимит Stories (size-guard и/или дефолт `max_height` для вертикали)
 - [ ] Генерация типизированного TS-клиента из OpenAPI
-- [ ] Скелет `frontend/` (Vite + TS, Telegram WebApp SDK) и CI-джоба
+- [ ] Скелет `frontend/` (Svelte + Vite + TS, Telegram WebApp SDK) и CI-джоба
 - [ ] Сценарий: создать задачу -> прогресс (SSE) -> по готовности `shareToStory` на каждый кусок
 - [ ] Деплой статики клиента за nginx (отдельная `location`)
 
