@@ -127,6 +127,7 @@ docker network connect <сеть_nginx> stories-backend
 - [`docs/TODO.md`](docs/TODO.md) - план работ по фазам.
 - [`docs/CHANGELOG.md`](docs/CHANGELOG.md) - история изменений.
 - [`docs/adr/`](docs/adr/) - Architecture Decision Records; [`0001`](docs/adr/0001-frontend-architecture.md) - архитектура фронтенда.
+- [`frontend/`](frontend/) - клиент (Telegram Mini App, Svelte + Vite + TS); подробности в [`frontend/README.md`](frontend/README.md).
 
 ## Лицензия
 

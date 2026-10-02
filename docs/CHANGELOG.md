@@ -8,6 +8,13 @@
 
 ### Added
 
+- Скелет фронтенда в `frontend/` (Svelte 5 + Vite + TypeScript, Telegram Mini
+  App): форма URL -> создание задачи -> прогресс по SSE -> список готовых кусков
+  со скачиванием. Клиент API с `X-API-Key`, SSE через `fetch` (не EventSource),
+  обёртка Telegram WebApp SDK (тема, `shareToStory`). Строгий `svelte-check`/`tsc`
+  зелёный; добавлена CI-джоба `frontend` (check + build на Node 22). Публикация в
+  Stories подключена (`shareToStory`), но ждёт backend-шага с публичным
+  подписанным URL кусков.
 - ADR `docs/adr/0001-frontend-architecture.md`: зафиксировано решение по клиенту -
   Telegram Mini App на TypeScript, монорепо (каталог `frontend/`), публикация
   кусков через `shareToStory` (с подписанными HMAC+TTL URL для публичной отдачи
