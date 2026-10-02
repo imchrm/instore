@@ -8,6 +8,10 @@
 
 ### Added
 
+- ADR `docs/adr/0001-frontend-architecture.md`: зафиксировано решение по клиенту -
+  Telegram Mini App на TypeScript, монорепо (каталог `frontend/`), публикация
+  кусков через `shareToStory` (с подписанными HMAC+TTL URL для публичной отдачи
+  кусков Telegram'у). В `TODO.md` добавлена «Фаза 8. Фронтенд».
 - `docker-compose.yml` в корне репозитория: сборка образа, подключение к общей
   сети nginx (external, по умолчанию `360tur_default`, переопределяется через
   `NGINX_NETWORK`), переиспользование существующего тома `stories-data`
