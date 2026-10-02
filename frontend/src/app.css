@@ -1,0 +1,50 @@
+/* Токены темы. Внутри Telegram подхватываются переменные --tg-theme-*,
+   иначе действуют светлые значения по умолчанию и тёмная тема по
+   prefers-color-scheme. */
+:root {
+  --bg: var(--tg-theme-bg-color, #ffffff);
+  --text: var(--tg-theme-text-color, #1a1a1a);
+  --muted: var(--tg-theme-hint-color, #6b7280);
+  --card-bg: var(--tg-theme-secondary-bg-color, #f6f7f9);
+  --input-bg: var(--tg-theme-bg-color, #ffffff);
+  --accent: var(--tg-theme-button-color, #2a7bd4);
+  --accent-text: var(--tg-theme-button-text-color, #ffffff);
+  --border: #d9dce1;
+  --danger: #d23f3f;
+
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tg]) {
+    --bg: #17191c;
+    --text: #e8e8e8;
+    --muted: #9aa0a6;
+    --card-bg: #1f2227;
+    --input-bg: #1f2227;
+    --border: #343941;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
