@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ChunkInfo } from '../lib/types';
-  import { chunkAbsoluteUrl, downloadChunk } from '../lib/api';
+  import { downloadChunk, fetchShareUrl } from '../lib/api';
   import { shareToStory, supportsShareToStory } from '../lib/telegram';
 
   interface Props {
@@ -10,8 +10,6 @@
 
   const { jobId, chunks }: Props = $props();
 
-  // Лимит истории Telegram - 30 МБ (см. ADR 0001).
-  const STORY_MAX_BYTES = 30 * 1024 * 1024;
   const canShare = supportsShareToStory();
 
   let busy = $state<number | null>(null);
@@ -33,11 +31,19 @@
     }
   }
 
-  function onShare(chunk: ChunkInfo): void {
-    // ВНИМАНИЕ: пока отдача кусков закрыта X-API-Key, Telegram не сможет забрать
-    // этот URL. Публичная подписанная отдача (HMAC+TTL) - следующий backend-шаг
-    // Фазы 8; до него кнопка носит демонстрационный характер.
-    shareToStory(chunkAbsoluteUrl(chunk.url));
+  async function onShare(chunk: ChunkInfo): Promise<void> {
+    // Берём у бэкенда подписанный публичный URL (Telegram тянет его сам, без
+    // X-API-Key) и открываем родной редактор историй.
+    error = '';
+    busy = chunk.index;
+    try {
+      const share = await fetchShareUrl(jobId, chunk.index);
+      shareToStory(share.url);
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    } finally {
+      busy = null;
+    }
   }
 </script>
 
@@ -51,7 +57,7 @@
           <span class="sub">
             {chunk.duration_sec.toFixed(1)} c · {mib(chunk.size_bytes)}
             {#if chunk.over_limit}<span class="badge warn">over_limit</span>{/if}
-            {#if chunk.size_bytes > STORY_MAX_BYTES}<span class="badge warn">&gt;30 МБ</span>{/if}
+            {#if chunk.over_story_limit}<span class="badge warn">&gt;30 МБ</span>{/if}
           </span>
         </div>
         <div class="actions">
@@ -59,7 +65,14 @@
             {busy === chunk.index ? '...' : 'Скачать'}
           </button>
           {#if canShare}
-            <button class="ghost" onclick={() => onShare(chunk)}>В Stories</button>
+            <button
+              class="ghost"
+              onclick={() => onShare(chunk)}
+              disabled={busy === chunk.index || chunk.over_story_limit}
+              title={chunk.over_story_limit ? 'Кусок больше 30 МБ - Telegram не примет' : ''}
+            >
+              В Stories
+            </button>
           {/if}
         </div>
       </li>
@@ -68,8 +81,14 @@
   {#if error}<p class="error">{error}</p>{/if}
   {#if canShare}
     <p class="note">
-      «В Stories» открывает редактор историй Telegram. Публикация заработает после
-      backend-шага: публичный подписанный URL кусков (Фаза 8).
+      «В Stories» открывает родной редактор историй Telegram с этим куском. Куски
+      крупнее 30 МБ Telegram не принимает (кнопка выключена) - уменьшите высоту при
+      создании задачи.
+    </p>
+  {:else}
+    <p class="note">
+      Публикация в Stories доступна только внутри Telegram (Mini App). В обычном
+      браузере - «Скачать» и публикация вручную.
     </p>
   {/if}
 </section>

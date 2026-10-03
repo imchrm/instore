@@ -8,6 +8,11 @@
 
 ### Added
 
+- Клиент (`frontend/`): интеграция публикации в Stories - кнопка «В Stories»
+  запрашивает у бэкенда подписанный URL куска (`fetchShareUrl`) и вызывает
+  `shareToStory`; куски с `over_story_limit` (> 30 МБ) заблокированы. В
+  `frontend/README.md` добавлена инструкция по настройке бота и Mini App в
+  Telegram (BotFather `/newbot` + `/newapp`, URL клиента, кнопка меню).
 - Подписанные публичные URL кусков для Telegram `shareToStory`: эндпоинт
   `GET /jobs/{id}/chunks/{index}/share-url` (владельцу по ключу) выдаёт
   `{ url, expires_at }` с HMAC-подписью и сроком, а публичный
