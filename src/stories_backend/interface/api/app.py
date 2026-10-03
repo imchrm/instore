@@ -19,6 +19,7 @@ from stories_backend.application.use_cases.cookies_admin import CookiesAdminUseC
 from stories_backend.application.use_cases.create_job import CreateJobUseCase
 from stories_backend.application.use_cases.delete_job import DeleteJobUseCase
 from stories_backend.application.use_cases.get_job import GetJobUseCase
+from stories_backend.application.use_cases.get_job_unscoped import GetJobUnscopedUseCase
 from stories_backend.application.use_cases.process_job import ProcessJobUseCase
 from stories_backend.application.use_cases.recover_interrupted import RecoverInterruptedUseCase
 from stories_backend.application.use_cases.stream_progress import StreamProgressUseCase
@@ -31,6 +32,7 @@ from stories_backend.infrastructure.media.ffprobe_probe import FfprobeMediaProbe
 from stories_backend.infrastructure.persistence.sqlite_repo import SqliteJobRepository
 from stories_backend.infrastructure.process.runner import AsyncioProcessRunner
 from stories_backend.infrastructure.security.api_keys import ApiKeyRegistry
+from stories_backend.infrastructure.security.url_signer import UrlSigner
 from stories_backend.infrastructure.storage.filesystem_storage import FilesystemStorage
 from stories_backend.interface.api.container import Container
 from stories_backend.interface.api.routers import admin, jobs, system
@@ -72,6 +74,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     scheduler = PeriodicCleanupScheduler(cleanup, interval_sec=limits.cleanup_interval_sec)
     recover = RecoverInterruptedUseCase(repository, event_bus)
 
+    url_signer = UrlSigner(settings.signing_secret) if settings.signing_secret else None
+
     app.state.container = Container(
         settings=settings,
         limits=limits,
@@ -79,9 +83,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         storage=storage,
         create_job=CreateJobUseCase(repository, queue),
         get_job=GetJobUseCase(repository),
+        get_job_unscoped=GetJobUnscopedUseCase(repository),
         delete_job=DeleteJobUseCase(repository, storage),
         stream_progress=StreamProgressUseCase(repository, event_bus),
         cookies_admin=CookiesAdminUseCase(cookies_store),
+        url_signer=url_signer,
     )
 
     await recover.execute()

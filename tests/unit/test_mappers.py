@@ -49,7 +49,7 @@ def make_job(*, status: JobStatus, with_error: bool = False) -> Job:
 
 
 def test_job_to_response_maps_fields_and_chunk_url() -> None:
-    response = job_to_response(make_job(status=JobStatus.READY), _chunk_url)
+    response = job_to_response(make_job(status=JobStatus.READY), _chunk_url, 30 * 1024 * 1024)
 
     assert response.job_id == "job-1"
     assert response.status is JobStatus.READY
@@ -58,10 +58,20 @@ def test_job_to_response_maps_fields_and_chunk_url() -> None:
     assert response.error is None
     assert len(response.chunks) == 1
     assert response.chunks[0].url == "/api/v1/jobs/job-1/chunks/0"
+    assert response.chunks[0].over_story_limit is False
+
+
+def test_job_to_response_flags_over_story_limit() -> None:
+    # Лимит 5 байт - кусок на 10 байт его превышает.
+    response = job_to_response(make_job(status=JobStatus.READY), _chunk_url, 5)
+
+    assert response.chunks[0].over_story_limit is True
 
 
 def test_job_to_response_includes_error() -> None:
-    response = job_to_response(make_job(status=JobStatus.FAILED, with_error=True), _chunk_url)
+    response = job_to_response(
+        make_job(status=JobStatus.FAILED, with_error=True), _chunk_url, 30 * 1024 * 1024
+    )
 
     assert response.error is not None
     assert response.error.code is ErrorCode.TOO_LARGE
@@ -93,4 +103,5 @@ def test_limits_to_service_config_lists_all_fits() -> None:
 
     assert dto.max_filesize_mb == 50
     assert dto.job_ttl_seconds == 1200
+    assert dto.story_max_filesize_mb == 30
     assert dto.stories_fit_options == [StoriesFit.NONE, StoriesFit.COVER, StoriesFit.PAD]

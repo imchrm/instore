@@ -27,6 +27,8 @@ class ChunkInfo(BaseModel):
     size_bytes: int
     sha256: str
     over_limit: bool
+    # Кусок крупнее лимита Telegram Stories (размер > STORY_MAX_FILESIZE_MB).
+    over_story_limit: bool
 
 
 class ErrorInfo(BaseModel):
@@ -48,6 +50,13 @@ class JobResponse(BaseModel):
     error: ErrorInfo | None = None
     created_at: float
     updated_at: float
+
+
+class ShareUrlDto(BaseModel):
+    """Подписанная публичная ссылка на кусок и её срок действия (unix-секунды)."""
+
+    url: str
+    expires_at: int
 
 
 class ProgressEventDto(BaseModel):
@@ -76,3 +85,4 @@ class ServiceConfigDto(BaseModel):
     keyframe_limit_sec: int
     stories_fit_options: list[StoriesFit]
     job_ttl_seconds: int
+    story_max_filesize_mb: int

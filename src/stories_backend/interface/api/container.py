@@ -12,9 +12,11 @@ from stories_backend.application.use_cases.cookies_admin import CookiesAdminUseC
 from stories_backend.application.use_cases.create_job import CreateJobUseCase
 from stories_backend.application.use_cases.delete_job import DeleteJobUseCase
 from stories_backend.application.use_cases.get_job import GetJobUseCase
+from stories_backend.application.use_cases.get_job_unscoped import GetJobUnscopedUseCase
 from stories_backend.application.use_cases.stream_progress import StreamProgressUseCase
 from stories_backend.domain.ports import StoragePort
 from stories_backend.infrastructure.security.api_keys import ApiKeyRegistry
+from stories_backend.infrastructure.security.url_signer import UrlSigner
 from stories_backend.interface.config import Settings
 
 
@@ -28,6 +30,9 @@ class Container:
     storage: StoragePort
     create_job: CreateJobUseCase
     get_job: GetJobUseCase
+    get_job_unscoped: GetJobUnscopedUseCase
     delete_job: DeleteJobUseCase
     stream_progress: StreamProgressUseCase
     cookies_admin: CookiesAdminUseCase
+    # Подписант публичных URL кусков; None - функция выключена (нет SIGNING_SECRET).
+    url_signer: UrlSigner | None = None

@@ -59,6 +59,16 @@ class Settings(BaseSettings):
         default="veryfast",
         description="пресет libx264 (компромисс скорость/битрейт), напр. veryfast/fast/medium",
     )
+    story_max_filesize_mb: int = 30
+    signing_secret: str = Field(
+        default="",
+        description="секрет HMAC для подписанных публичных URL кусков; пусто = функция выключена",
+    )
+    signed_url_ttl_sec: int = 300
+    public_base_url: str = Field(
+        default="",
+        description="база подписанных URL (напр. https://host/instore); пусто = вывести из запроса",
+    )
     cleanup_interval_sec: int = 60
     use_xaccel: bool = False
     xaccel_internal_prefix: str = "/_protected"
@@ -70,6 +80,12 @@ class Settings(BaseSettings):
         """Нормализовать префикс: без концевого '/', с ведущим '/' (или пусто для корня)."""
         trimmed = value.strip().strip("/")
         return f"/{trimmed}" if trimmed else ""
+
+    @field_validator("public_base_url")
+    @classmethod
+    def _normalize_public_base_url(cls, value: str) -> str:
+        """Срезать концевой '/' (путь подписанной ссылки добавляется явно)."""
+        return value.strip().rstrip("/")
 
     @field_validator("transcode_preset")
     @classmethod
@@ -105,4 +121,5 @@ class Settings(BaseSettings):
             target_fps=self.target_fps,
             job_ttl_seconds=self.job_ttl_seconds,
             cleanup_interval_sec=self.cleanup_interval_sec,
+            story_max_filesize_mb=self.story_max_filesize_mb,
         )

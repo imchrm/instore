@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -19,10 +20,12 @@ from stories_backend.application.use_cases.cookies_admin import CookiesAdminUseC
 from stories_backend.application.use_cases.create_job import CreateJobUseCase
 from stories_backend.application.use_cases.delete_job import DeleteJobUseCase
 from stories_backend.application.use_cases.get_job import GetJobUseCase
+from stories_backend.application.use_cases.get_job_unscoped import GetJobUnscopedUseCase
 from stories_backend.application.use_cases.stream_progress import StreamProgressUseCase
 from stories_backend.domain.entities import Chunk, Job, ProgressEvent
 from stories_backend.domain.enums import JobStatus, StoriesFit
 from stories_backend.infrastructure.security.api_keys import ApiKeyRegistry
+from stories_backend.infrastructure.security.url_signer import UrlSigner
 from stories_backend.interface.api.container import Container
 from stories_backend.interface.api.routers import admin, jobs
 from stories_backend.interface.api.routers.jobs import _sse_stream
@@ -34,7 +37,15 @@ _HEADERS = {"X-API-Key": "secret-phone"}
 class Harness:
     """Собранное тестовое приложение и его fake-зависимости."""
 
-    def __init__(self, tmp_path: Path, *, use_xaccel: bool = False, root_path: str = "") -> None:
+    def __init__(
+        self,
+        tmp_path: Path,
+        *,
+        use_xaccel: bool = False,
+        root_path: str = "",
+        signing_secret: str = "",
+        public_base_url: str = "",
+    ) -> None:
         self.repo = FakeJobRepository()
         self.storage = FakeStorage(base_dir=tmp_path)
         self.bus = FakeEventBus()
@@ -45,6 +56,8 @@ class Harness:
             data_dir=str(tmp_path),
             use_xaccel=use_xaccel,
             root_path=root_path,
+            signing_secret=signing_secret,
+            public_base_url=public_base_url,
         )
         container = Container(
             settings=settings,
@@ -53,9 +66,11 @@ class Harness:
             storage=self.storage,
             create_job=CreateJobUseCase(self.repo, self.submitter, id_generator=lambda: "job-1"),
             get_job=GetJobUseCase(self.repo),
+            get_job_unscoped=GetJobUnscopedUseCase(self.repo),
             delete_job=DeleteJobUseCase(self.repo, self.storage),
             stream_progress=StreamProgressUseCase(self.repo, self.bus),
             cookies_admin=CookiesAdminUseCase(self.cookies),
+            url_signer=UrlSigner(signing_secret) if signing_secret else None,
         )
         app = FastAPI()
         app.state.container = container
@@ -213,6 +228,102 @@ def test_get_chunk_missing_index(tmp_path: Path) -> None:
     harness.repo.jobs["job-1"] = _job_with_chunk()
 
     response = harness.client.get("/api/v1/jobs/job-1/chunks/9", headers=_HEADERS)
+    assert response.status_code == 404
+
+
+# --- size-guard (over_story_limit) ----------------------------------------
+
+
+def test_job_response_flags_over_story_limit(tmp_path: Path) -> None:
+    harness = Harness(tmp_path)
+    big = Chunk(
+        index=0,
+        filename="conv_000.mp4",
+        duration_sec=45.0,
+        size_bytes=40 * 1024 * 1024,  # > 30 МБ лимита Stories
+        sha256="ab",
+        over_limit=False,
+    )
+    harness.repo.jobs["job-1"] = make_job("job-1", "phone", status=JobStatus.READY, chunks=[big])
+
+    body = harness.client.get("/api/v1/jobs/job-1", headers=_HEADERS).json()
+
+    assert body["chunks"][0]["over_story_limit"] is True
+
+
+# --- signed share URLs -----------------------------------------------------
+
+_SECRET = "test-signing-secret"
+
+
+def test_mint_share_url_disabled_without_secret(tmp_path: Path) -> None:
+    harness = Harness(tmp_path)  # signing_secret пуст -> функция выключена
+    harness.repo.jobs["job-1"] = _job_with_chunk()
+
+    response = harness.client.get("/api/v1/jobs/job-1/chunks/0/share-url", headers=_HEADERS)
+    assert response.status_code == 503
+
+
+def test_mint_share_url_ok(tmp_path: Path) -> None:
+    harness = Harness(tmp_path, signing_secret=_SECRET, public_base_url="https://host/instore")
+    harness.repo.jobs["job-1"] = _job_with_chunk()
+
+    response = harness.client.get("/api/v1/jobs/job-1/chunks/0/share-url", headers=_HEADERS)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["url"].startswith("https://host/instore/api/v1/public/chunks/job-1/0?")
+    assert "exp=" in body["url"] and "sig=" in body["url"]
+    assert body["expires_at"] > int(time.time())
+
+
+def test_mint_share_url_requires_ownership(tmp_path: Path) -> None:
+    harness = Harness(tmp_path, signing_secret=_SECRET)
+    harness.repo.jobs["job-1"] = _job_with_chunk()
+
+    foreign = harness.client.get(
+        "/api/v1/jobs/job-1/chunks/0/share-url", headers={"X-API-Key": "secret-tablet"}
+    )
+    assert foreign.status_code == 404
+
+
+def test_public_chunk_serves_with_valid_signature(tmp_path: Path) -> None:
+    harness = Harness(tmp_path, signing_secret=_SECRET)
+    harness.repo.jobs["job-1"] = _job_with_chunk()
+    job_dir = Path(harness.storage.job_dir("job-1"))
+    (job_dir / "conv_000.mp4").write_bytes(b"chunk-0")
+
+    exp = int(time.time()) + 300
+    sig = UrlSigner(_SECRET).sign("job-1", 0, exp)
+    response = harness.client.get(f"/api/v1/public/chunks/job-1/0?exp={exp}&sig={sig}")
+
+    assert response.status_code == 200
+    assert response.content == b"chunk-0"
+
+
+def test_public_chunk_rejects_bad_signature(tmp_path: Path) -> None:
+    harness = Harness(tmp_path, signing_secret=_SECRET)
+    harness.repo.jobs["job-1"] = _job_with_chunk()
+
+    exp = int(time.time()) + 300
+    response = harness.client.get(f"/api/v1/public/chunks/job-1/0?exp={exp}&sig=wrong")
+    assert response.status_code == 403
+
+
+def test_public_chunk_rejects_expired(tmp_path: Path) -> None:
+    harness = Harness(tmp_path, signing_secret=_SECRET)
+    harness.repo.jobs["job-1"] = _job_with_chunk()
+
+    exp = int(time.time()) - 1
+    sig = UrlSigner(_SECRET).sign("job-1", 0, exp)
+    response = harness.client.get(f"/api/v1/public/chunks/job-1/0?exp={exp}&sig={sig}")
+    assert response.status_code == 403
+
+
+def test_public_chunk_disabled_without_secret(tmp_path: Path) -> None:
+    harness = Harness(tmp_path)
+    harness.repo.jobs["job-1"] = _job_with_chunk()
+
+    response = harness.client.get("/api/v1/public/chunks/job-1/0?exp=1&sig=x")
     assert response.status_code == 404
 
 
