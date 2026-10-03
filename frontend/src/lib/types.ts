@@ -28,6 +28,15 @@ export interface ChunkInfo {
   size_bytes: number;
   sha256: string;
   over_limit: boolean;
+  /** Размер больше лимита Telegram Stories (STORY_MAX_FILESIZE_MB). */
+  over_story_limit: boolean;
+}
+
+export interface ShareUrl {
+  /** Публичный подписанный URL куска (для shareToStory). */
+  url: string;
+  /** Срок действия ссылки, unix-секунды. */
+  expires_at: number;
 }
 
 export interface ErrorInfo {

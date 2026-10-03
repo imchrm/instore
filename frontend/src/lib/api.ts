@@ -5,7 +5,7 @@
 // задавать заголовки, а эндпоинт событий требует X-API-Key.
 
 import { API_BASE, getApiKey } from './config';
-import type { JobCreateRequest, JobResponse, ProgressEvent } from './types';
+import type { JobCreateRequest, JobResponse, ProgressEvent, ShareUrl } from './types';
 import { TERMINAL_STATUSES } from './types';
 
 export class ApiError extends Error {
@@ -120,9 +120,19 @@ function parseSseData(block: string): ProgressEvent | null {
   }
 }
 
-/** Абсолютный URL куска (для шеринга/отладки); требует X-API-Key при запросе. */
-export function chunkAbsoluteUrl(chunkUrl: string): string {
-  return new URL(chunkUrl, window.location.origin).toString();
+/**
+ * Запросить подписанную публичную ссылку на кусок (для Telegram shareToStory).
+ * Требует X-API-Key (владение задачей). 503 - функция на сервере выключена.
+ */
+export async function fetchShareUrl(jobId: string, index: number): Promise<ShareUrl> {
+  const response = await fetch(
+    `${API_BASE}/jobs/${encodeURIComponent(jobId)}/chunks/${index}/share-url`,
+    { headers: authHeaders() },
+  );
+  if (!response.ok) {
+    throw new ApiError(response.status, await errorMessage(response));
+  }
+  return (await response.json()) as ShareUrl;
 }
 
 /** Скачать кусок (с X-API-Key) и сохранить файлом на устройство. */
