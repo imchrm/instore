@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from stories_backend.application.services.job_processing import JobProcessingService
 from stories_backend.application.use_cases.cleanup_expired import CleanupExpiredUseCase
@@ -111,4 +113,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(system.router)
     app.include_router(jobs.router)
     app.include_router(admin.router)
+    # Статика клиента (Mini App): отдаётся по /app, если каталог задан и существует.
+    # За reverse-proxy с ROOT_PATH=/instore внешний адрес - https://host/instore/app/.
+    if resolved.client_dir and Path(resolved.client_dir).is_dir():
+        app.mount("/app", StaticFiles(directory=resolved.client_dir, html=True), name="client")
     return app

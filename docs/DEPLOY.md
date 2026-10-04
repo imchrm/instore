@@ -165,6 +165,7 @@ external). Первый `up` после прежнего `docker run` перес
 | `ROOT_PATH`              | `` (корень)    | публичный префикс пути за reverse-proxy, например `/instore` (см. ниже) |
 | `DATA_DIR`               | `/data`        | каталог данных (SQLite, куски, cookies); совпадает с томом |
 | `COOKIES_DIR`            | `${DATA_DIR}/cookies` | каталог cookies по `key_id`                      |
+| `CLIENT_DIR`             | `/opt/client` (в образе) | каталог статики клиента; отдаётся по `/app`, пусто = не отдавать |
 | `JOB_TTL_SECONDS`        | `1200`         | TTL готовых кусков перед `expired`                      |
 | `MAX_CONCURRENT_JOBS`    | `1`            | предел параллельной обработки                           |
 | `MAX_FILESIZE_MB`        | `50`           | лимит размера исходного видео                           |
@@ -335,6 +336,31 @@ location /instore/ {
 
 Публикацию `-p 127.0.0.1:8000:8000` можно оставить - удобна для локальных
 smoke-проверок с хоста и nginx-контейнеру не мешает.
+
+## Раздача клиента (Mini App)
+
+Статику клиента (Telegram Mini App) собирает и отдаёт **само приложение** - это
+не требует правок nginx. Фронтенд собирается отдельной стадией в `Dockerfile` и
+кладётся в образ (`CLIENT_DIR=/opt/client`); FastAPI отдаёт его по `/app`.
+Поскольку `/instore/` уже проксируется на контейнер, снаружи клиент доступен по
+`https://<домен>/instore/app/` без дополнительной `location`.
+
+Сборка клиента внутри образа настроена под подпуть `/instore` через build-арг
+(значения по умолчанию в `Dockerfile`):
+
+- `VITE_BASE=/instore/app/` - базовый путь ассетов;
+- `VITE_API_BASE=/instore/api/v1` - адрес API для клиента.
+
+Для другого размещения переопределить при сборке, например:
+
+```sh
+docker compose build \
+  --build-arg VITE_BASE=/app/ \
+  --build-arg VITE_API_BASE=/api/v1
+```
+
+Проверка после деплоя: `curl -sI https://<домен>/instore/app/` отдаёт `200` и
+`text/html`. Чтобы не отдавать клиента (только API), задайте `CLIENT_DIR=` пустым.
 
 ## Instagram cookies
 

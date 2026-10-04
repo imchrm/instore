@@ -364,6 +364,7 @@ DATA_DIR/
 | `SIGNING_SECRET` | секрет HMAC подписанных публичных URL кусков; пусто = выкл. | (выкл.) |
 | `SIGNED_URL_TTL_SEC` | срок жизни подписанной ссылки | `300` |
 | `PUBLIC_BASE_URL` | база подписанных URL (напр. `https://host/instore`) | (из запроса) |
+| `CLIENT_DIR` | каталог статики клиента (Mini App); отдаётся по `/app` | `/opt/client` (в образе) |
 | `CLEANUP_INTERVAL_SEC` | период планировщика очистки | `60` |
 | `USE_XACCEL` | отдача файлов через nginx | `false` |
 | `XACCEL_INTERNAL_PREFIX` | internal-локация nginx | `/_protected` |

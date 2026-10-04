@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     )
     data_dir: str = "/data"
     cookies_dir: str | None = None
+    # Каталог собранной статики клиента (Mini App). Если задан и существует -
+    # отдаётся по /app (в Docker-образе выставляется автоматически).
+    client_dir: str = ""
     job_ttl_seconds: int = 1200
     max_concurrent_jobs: int = 1
     max_filesize_mb: int = 50
