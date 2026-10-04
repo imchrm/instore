@@ -343,6 +343,53 @@ PyPI) либо включить обновление на старте: `YT_DLP_
 `--env-file` или разово через `-e`; требует доступа к PyPI). Подробности в
 `DEPLOY.md`.
 
+### 8. Сценарий C: первый запуск Mini App в Telegram (end-to-end публикация)
+
+Проверка полного пути «URL -> куски -> история» из клиента внутри Telegram.
+
+Предусловие (бэкенд):
+
+```sh
+# В instore.env заданы секрет и публичная база для подписанных URL:
+grep -E '^(SIGNING_SECRET|PUBLIC_BASE_URL|ROOT_PATH)=' instore.env
+# SIGNING_SECRET=<длинный случайный>   PUBLIC_BASE_URL=https://360tur.uz/instore   ROOT_PATH=/instore
+cd /opt/360tur/srv/instore && docker compose up -d --build   # пересобрать с клиентом
+```
+
+C1. Клиент и API доступны снаружи:
+
+```sh
+curl -sI https://360tur.uz/instore/app/ | head -1      # 200, text/html
+curl -s  https://360tur.uz/instore/api/v1/health       # {"status":"ok"}
+```
+
+C2. Подписанные URL работают (по ключу выдаётся ссылка, публичная отдача - без ключа).
+Создайте короткую задачу (сценарий A1/B3), дождитесь `ready`, затем:
+
+```sh
+JOB=<id готовой задачи>
+SHARE=$(curl -s -H "X-API-Key: $KEY" "$BASE/jobs/$JOB/chunks/0/share-url"); echo "$SHARE"
+URL=$(printf '%s' "$SHARE" | grep -o '"url":"[^"]*"' | cut -d'"' -f4)
+curl -s -o /dev/null -w "%{http_code}\n" "$URL"         # 200 (без X-API-Key)
+```
+
+Критерий C2: `share-url` вернул `{url, expires_at}`; публичный `url` отдаёт `200`
+без ключа. Если `share-url` -> `503`, не задан `SIGNING_SECRET`.
+
+C3. Регистрация бота и Mini App (однократно) - см. `frontend/README.md`:
+BotFather `/newbot` -> `/newapp` (URL `https://360tur.uz/instore/app/`) -> ссылка
+`t.me/<bot>/<short_name>`; по желанию - кнопка меню.
+
+C4. Запуск в Telegram (мобильный):
+
+- открыть `t.me/<bot>/<short_name>` -> Mini App загружается, тема из Telegram;
+- ввести `X-API-Key`; создать короткую задачу (`stories_fit=cover`, `max_height<=480`);
+- дождаться `ready`; на куске нажать «В Stories» -> открывается родной редактор
+  историй с видео -> опубликовать; повторить для каждого куска.
+
+Критерий C4: история публикуется; куски с бейджем `>30 МБ` (`over_story_limit`)
+кнопку «В Stories» не дают - снизить `max_height` и пересоздать задачу.
+
 ## Развёртывание под подпутём `/instore` за nginx
 
 Сервис - это работающий процесс в контейнере (порт 8000), а не статика; в

@@ -12,6 +12,10 @@ tests
 .dockerignore
 Dockerfile
 
+# Node / сборка клиента (фронтенд собирается в отдельной стадии из исходников).
+**/node_modules
+frontend/dist/
+
 # Python-мусор и кэши
 __pycache__/
 *.py[cod]

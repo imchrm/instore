@@ -8,6 +8,14 @@
 
 ### Added
 
+- Раздача клиента (Mini App) самим приложением: FastAPI отдаёт статику по `/app`
+  из `CLIENT_DIR` (если каталог задан и существует). Клиент собирается отдельной
+  стадией `Dockerfile` (Node) под подпуть `/instore` (build-арг `VITE_BASE`,
+  `VITE_API_BASE`) и кладётся в образ (`CLIENT_DIR=/opt/client`). Снаружи -
+  `https://host/instore/app/` без правок nginx (идёт через существующий
+  `/instore/`-прокси). `.dockerignore` дополнен исключением `node_modules`/`dist`
+  клиента. В `MANUAL_CHECKS.md` добавлен «Сценарий C» - первый запуск Mini App
+  (end-to-end публикация).
 - Клиент (`frontend/`): интеграция публикации в Stories - кнопка «В Stories»
   запрашивает у бэкенда подписанный URL куска (`fetchShareUrl`) и вызывает
   `shareToStory`; куски с `over_story_limit` (> 30 МБ) заблокированы. В

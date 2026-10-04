@@ -104,10 +104,10 @@ Telegram Mini App на TypeScript, монорепо (каталог `frontend/`)
 - [x] Backend: size-guard под лимит Stories - `STORY_MAX_FILESIZE_MB` и флаг `over_story_limit` в ответе (информативно)
 - [x] Скелет `frontend/` (Svelte + Vite + TS, Telegram WebApp SDK) и CI-джоба: форма URL -> создание задачи -> прогресс (SSE) -> список кусков (скачивание); `shareToStory` подключён, но ждёт публичного URL
 - [x] Клиентская интеграция `shareToStory`: кнопка «В Stories» запрашивает `share-url` и открывает редактор историй; флаг `over_story_limit` блокирует куски > 30 МБ. Инструкция по настройке бота/Mini App - в `frontend/README.md`
+- [x] Раздача статики клиента: бэкенд отдаёт `/app` (`CLIENT_DIR`, multi-stage `Dockerfile`), снаружи `https://host/instore/app/` без правок nginx
 - [ ] Генерация типизированного TS-клиента из OpenAPI (пока типы DTO заданы вручную в `frontend/src/lib/types.ts`)
-- [ ] Деплой статики клиента за nginx (отдельная `location`) + задать на бэкенде `SIGNING_SECRET`/`PUBLIC_BASE_URL`
-- [ ] Зарегистрировать бота и Mini App в Telegram (BotFather), указать URL клиента
-- [ ] Деплой статики клиента за nginx (отдельная `location`)
+- [ ] Прод: задать `SIGNING_SECRET`/`PUBLIC_BASE_URL` в `instore.env` и пересобрать (`docker compose up -d --build`)
+- [ ] Зарегистрировать бота и Mini App в Telegram (BotFather), указать URL клиента; прогнать сценарий C (`MANUAL_CHECKS.md`)
 
 ## Открытые вопросы (вести по мере появления)
 

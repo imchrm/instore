@@ -22,6 +22,22 @@ COPY src ./src
 
 RUN pip install --upgrade pip && pip install .
 
+# --- client (Mini App) -----------------------------------------------------
+# Сборка статики фронтенда. База и адрес API задаются build-арг под подпуть за
+# nginx (по умолчанию /instore); для другого размещения переопределить при сборке.
+FROM node:22-slim AS client
+
+ARG VITE_BASE=/instore/app/
+ARG VITE_API_BASE=/instore/api/v1
+ENV VITE_BASE=${VITE_BASE} \
+    VITE_API_BASE=${VITE_API_BASE}
+
+WORKDIR /client
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 # --- runtime ---------------------------------------------------------------
 FROM python:3.12-slim AS runtime
 
@@ -30,7 +46,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     PATH="/opt/venv/bin:$PATH" \
-    DATA_DIR=/data
+    DATA_DIR=/data \
+    CLIENT_DIR=/opt/client
 
 # ffmpeg включает ffprobe; libx264 (GPL) допустим для приватного использования.
 RUN apt-get update \
@@ -40,6 +57,9 @@ RUN apt-get update \
 # venv отдаётся пользователю app, чтобы опциональное обновление yt-dlp
 # на старте (YT_DLP_AUTO_UPDATE) могло писать в него.
 COPY --from=builder --chown=app:app /opt/venv /opt/venv
+
+# Собранная статика клиента (Mini App); отдаётся приложением по /app (CLIENT_DIR).
+COPY --from=client --chown=app:app /client/dist /opt/client
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 

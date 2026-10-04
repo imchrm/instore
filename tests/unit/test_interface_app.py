@@ -51,3 +51,23 @@ def test_root_path_propagated_to_app(tmp_path: Path) -> None:
     app = create_app(settings)
 
     assert app.root_path == "/instore"
+
+
+def test_client_static_served_when_dir_present(tmp_path: Path) -> None:
+    client_dir = tmp_path / "client"
+    client_dir.mkdir()
+    (client_dir / "index.html").write_text("<h1>Mini App</h1>", encoding="utf-8")
+    settings = Settings(api_keys="phone:secret", data_dir=str(tmp_path), client_dir=str(client_dir))
+
+    with TestClient(create_app(settings)) as client:
+        response = client.get("/app/")
+
+    assert response.status_code == 200
+    assert "Mini App" in response.text
+
+
+def test_client_static_absent_without_dir(tmp_path: Path) -> None:
+    with TestClient(create_app(make_settings(tmp_path))) as client:
+        response = client.get("/app/")
+
+    assert response.status_code == 404
