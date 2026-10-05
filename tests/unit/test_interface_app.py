@@ -53,14 +53,45 @@ def test_root_path_propagated_to_app(tmp_path: Path) -> None:
     assert app.root_path == "/instore"
 
 
-def test_client_static_served_when_dir_present(tmp_path: Path) -> None:
+def _client_settings(tmp_path: Path, *, root_path: str = "") -> Settings:
     client_dir = tmp_path / "client"
-    client_dir.mkdir()
+    (client_dir / "assets").mkdir(parents=True)
     (client_dir / "index.html").write_text("<h1>Mini App</h1>", encoding="utf-8")
-    settings = Settings(api_keys="phone:secret", data_dir=str(tmp_path), client_dir=str(client_dir))
+    (client_dir / "assets" / "app.js").write_text("export const x = 1;", encoding="utf-8")
+    return Settings(
+        api_keys="phone:secret",
+        data_dir=str(tmp_path),
+        client_dir=str(client_dir),
+        root_path=root_path,
+    )
 
-    with TestClient(create_app(settings)) as client:
-        response = client.get("/app/")
+
+def test_client_static_served_when_dir_present(tmp_path: Path) -> None:
+    with TestClient(create_app(_client_settings(tmp_path))) as client:
+        root = client.get("/app/")
+        asset = client.get("/app/assets/app.js")
+
+    assert root.status_code == 200
+    assert "Mini App" in root.text
+    assert asset.status_code == 200
+    assert "export const x" in asset.text
+
+
+def test_client_static_served_behind_root_path(tmp_path: Path) -> None:
+    # Регрессия: за reverse-proxy с ROOT_PATH nginx отдаёт срезанный путь /app/.
+    # Через StaticFiles-mount это не работало; обычные маршруты - работают.
+    with TestClient(create_app(_client_settings(tmp_path, root_path="/instore"))) as client:
+        root = client.get("/app/")
+        asset = client.get("/app/assets/app.js")
+
+    assert root.status_code == 200
+    assert "Mini App" in root.text
+    assert asset.status_code == 200
+
+
+def test_client_static_spa_fallback_to_index(tmp_path: Path) -> None:
+    with TestClient(create_app(_client_settings(tmp_path))) as client:
+        response = client.get("/app/unknown/route")
 
     assert response.status_code == 200
     assert "Mini App" in response.text

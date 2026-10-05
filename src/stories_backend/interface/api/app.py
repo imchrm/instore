@@ -13,7 +13,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, RedirectResponse
 
 from stories_backend.application.services.job_processing import JobProcessingService
 from stories_backend.application.use_cases.cleanup_expired import CleanupExpiredUseCase
@@ -116,5 +116,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Статика клиента (Mini App): отдаётся по /app, если каталог задан и существует.
     # За reverse-proxy с ROOT_PATH=/instore внешний адрес - https://host/instore/app/.
     if resolved.client_dir and Path(resolved.client_dir).is_dir():
-        app.mount("/app", StaticFiles(directory=resolved.client_dir, html=True), name="client")
+        _register_client(app, resolved.client_dir)
     return app
+
+
+def _register_client(app: FastAPI, client_dir: str) -> None:
+    """Отдавать статику клиента (Mini App) по /app обычными маршрутами.
+
+    Через ``StaticFiles``-mount статика не доходит за reverse-proxy, срезающим
+    префикс (``root_path``): Mount сопоставляется с учётом ``root_path`` и не
+    ловит `/app` (nginx отдаёт уже срезанный путь), тогда как обычные маршруты
+    ловят. Поэтому - маршруты + ``FileResponse`` с защитой от выхода за каталог;
+    несуществующий путь отдаёт ``index.html`` (SPA-фолбэк).
+    """
+    root = Path(client_dir).resolve()
+    index = root / "index.html"
+
+    def resolve(path: str) -> Path:
+        candidate = (root / path).resolve()
+        if (candidate == root or root in candidate.parents) and candidate.is_file():
+            return candidate
+        return index
+
+    @app.get("/app", include_in_schema=False)
+    async def client_index_redirect() -> RedirectResponse:
+        return RedirectResponse(url="app/")
+
+    @app.get("/app/{path:path}", include_in_schema=False)
+    async def client_files(path: str = "") -> FileResponse:
+        return FileResponse(resolve(path))
